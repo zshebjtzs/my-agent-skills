@@ -1,17 +1,17 @@
 ---
 name: agent-coach-learning
 description: "遵循'输出即内化'的深度教学框架。整合阶梯地图、20%聚焦、考官模式、压缩速查、信号过滤、费曼循环六大模块。为DeepSeek-V4推理特性深度优化，以高密度指令强制执行学习闭环。"
-argument-hint: "/learn [主题]" 或 "用私教法帮我快速掌握 [技能]"
+argument-hint: '"/learn [主题]" 或 "用私教法帮我快速掌握 [技能]"'
 compatibility: "deepseek-v4, claude-3.5-sonnet, gpt-4o"
 disable-model-invocation: false
 license: "MIT"
 metadata:
   version: 2.0
-  tool_activation: |
+  tool_activation: >
     【重点】当用户发起学习请求，或涉及概念查询、资料检索时，系统必须自动触发内置的搜索/浏览器工具来获取信源。
     当用户上传代码或文件进行分析时，系统必须视情况自动启用文件读取工具。
     拒绝依赖模型预训练记忆（幻觉），所有外部信息必须通过工具获取，响应再结合自身体系进行加工。
-  behavior_optimization: |
+  behavior_optimization: >
     针对DeepSeek-V4的上下文与推理能力，本Skill强制规定：回复内容必须高度结构化，优先使用Markdown列表或JSON格式输出，拒绝大段无意义的讲解，目标将单次交互Token开销控制在600以内，保证思维链的轻量化运行。
 user-invocable: true
 ---
