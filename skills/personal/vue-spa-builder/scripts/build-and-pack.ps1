@@ -31,7 +31,28 @@ if (-not (Test-Path "node_modules")) {
     }
 }
 
-# 执行构建
+# ============================================================
+# 阶段 1：检查说明文件是否存在
+# ============================================================
+$readmeFiles = @("README.txt", "README_zh.txt", "README_en.txt")
+$existingReadmes = @()
+foreach ($file in $readmeFiles) {
+    if (Test-Path $file) {
+        $existingReadmes += $file
+    }
+}
+
+if ($existingReadmes.Count -eq 0) {
+    Write-Host "错误：未检测到任何说明文件（README.txt / README_zh.txt / README_en.txt）。" -ForegroundColor Red
+    Write-Host "请让 AI 先生成说明文件，或手动在项目根目录创建 README.txt。" -ForegroundColor Yellow
+    exit 1
+}
+
+Write-Host "检测到说明文件：$($existingReadmes -join ', ')" -ForegroundColor Green
+
+# ============================================================
+# 阶段 2：执行构建
+# ============================================================
 Write-Host "开始构建项目（npm run build）..." -ForegroundColor Cyan
 npm run build
 if ($LASTEXITCODE -ne 0) {
@@ -46,7 +67,19 @@ if (-not (Test-Path "dist")) {
     exit 1
 }
 
-# 进入 dist 目录，打包所有文件为 zip（确保解压后直接看到 index.html）
+# ============================================================
+# 阶段 3：复制说明文件到 dist/
+# ============================================================
+Write-Host "正在复制说明文件到 dist/ 目录..." -ForegroundColor Cyan
+foreach ($file in $existingReadmes) {
+    Copy-Item -Path $file -Destination "dist\" -Force
+    Write-Host "  已复制: $file" -ForegroundColor Gray
+}
+Write-Host "说明文件复制完成。" -ForegroundColor Green
+
+# ============================================================
+# 阶段 4：打包 dist/ 为 zip
+# ============================================================
 $projectName = (Get-Item -Path ".").Name
 $zipName = "$projectName-$version.zip"
 $parentDir = (Get-Item -Path "..").FullName
@@ -61,34 +94,54 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "打包完成！压缩包位于：$zipPath" -ForegroundColor Green
 
-# 同时打包源代码（可选，但按用户要求命名为 Source Code.zip）
+# ============================================================
+# 阶段 5：打包源代码（可选）
+# ============================================================
 $srcZipPath = Join-Path $parentDir "Source Code.zip"
 Write-Host "正在打包源代码到 $srcZipPath（不含 node_modules、dist 等）..." -ForegroundColor Cyan
-# 定义排除项（使用通配符）
+# 定义排除项
 $exclude = @("node_modules", "dist", ".git", "*.zip", ".vscode", ".idea")
-$compressParams = @{
-    Path = "."
-    DestinationPath = $srcZipPath
-    Force = $true
-}
-# Compress-Archive 不支持排除，改用 Include 或使用 Get-ChildItem 筛选
 $itemsToZip = Get-ChildItem -Path "." -Exclude $exclude
 Compress-Archive -Path $itemsToZip.FullName -DestinationPath $srcZipPath -Force
 Write-Host "源代码打包完成。" -ForegroundColor Green
 
-# 更新 .gitignore（添加 *.zip 如果不存在）
+# ============================================================
+# 阶段 6：更新 .gitignore
+# ============================================================
 $gitignore = ".gitignore"
 if (Test-Path $gitignore) {
     $content = Get-Content $gitignore
+    $needUpdate = $false
+    
+    # 检查 *.zip
     if ($content -notcontains "*.zip") {
-        Add-Content $gitignore "`n# Ignore zip packages for release`n*.zip"
+        Add-Content $gitignore "`n# Ignore release packages`n*.zip"
         Write-Host "已向 .gitignore 添加 '*.zip' 规则。" -ForegroundColor Yellow
-    } else {
-        Write-Host ".gitignore 中已存在 '*.zip' 规则，无需重复添加。" -ForegroundColor Gray
+        $needUpdate = $true
+    }
+    
+    # 检查三个说明文件
+    foreach ($file in $readmeFiles) {
+        if ($content -notcontains $file) {
+            Add-Content $gitignore "`n# Ignore readme files for release`n$file"
+            Write-Host "已向 .gitignore 添加 '$file' 规则。" -ForegroundColor Yellow
+            $needUpdate = $true
+        }
+    }
+    
+    if (-not $needUpdate) {
+        Write-Host ".gitignore 中已包含所有必要规则。" -ForegroundColor Gray
     }
 } else {
-    Write-Host "警告：未找到 .gitignore 文件，建议手动创建并添加 '*.zip'。" -ForegroundColor Yellow
+    Write-Host "警告：未找到 .gitignore 文件，建议手动创建并添加以下规则：" -ForegroundColor Yellow
+    Write-Host "  *.zip" -ForegroundColor Yellow
+    Write-Host "  README.txt" -ForegroundColor Yellow
+    Write-Host "  README_zh.txt" -ForegroundColor Yellow
+    Write-Host "  README_en.txt" -ForegroundColor Yellow
 }
 
+# ============================================================
+# 完成
+# ============================================================
 Write-Host "`n全部完成！请检查以下文件：`n  - $zipPath`n  - $srcZipPath" -ForegroundColor Green
 Write-Host "你可以将这两个文件上传到 GitHub Release。" -ForegroundColor Cyan

@@ -80,7 +80,6 @@ if ($extraDeps -contains "vue-router@4") {
     if (Test-Path $routerFile) {
         Write-Host "正在将路由模式修改为 createWebHashHistory ..." -ForegroundColor Cyan
         $content = Get-Content $routerFile -Raw
-        # 简单替换（更精确可用正则）
         $newContent = $content -replace "createWebHistory", "createWebHashHistory"
         $newContent | Out-File -FilePath $routerFile -Encoding utf8
         Write-Host "路由模式已更新。" -ForegroundColor Green
@@ -89,25 +88,58 @@ if ($extraDeps -contains "vue-router@4") {
     }
 }
 
-# 更新 .gitignore 添加 *.zip
+# ============================================================
+# 更新 .gitignore：添加 *.zip 和三个说明文件
+# ============================================================
 $gitignore = ".gitignore"
+$ignoreRules = @(
+    "# Ignore release packages",
+    "*.zip",
+    "",
+    "# Ignore readme files for release",
+    "README.txt",
+    "README_zh.txt",
+    "README_en.txt"
+)
+
 if (Test-Path $gitignore) {
     $content = Get-Content $gitignore
+    $needUpdate = $false
+    
+    # 检查 *.zip
     if ($content -notcontains "*.zip") {
         Add-Content $gitignore "`n# Ignore release packages`n*.zip"
-        Write-Host "已添加 *.zip 到 .gitignore。" -ForegroundColor Green
+        $needUpdate = $true
+    }
+    
+    # 检查三个说明文件
+    foreach ($file in @("README.txt", "README_zh.txt", "README_en.txt")) {
+        if ($content -notcontains $file) {
+            Add-Content $gitignore "`n# Ignore readme files for release`n$file"
+            $needUpdate = $true
+        }
+    }
+    
+    if ($needUpdate) {
+        Write-Host "已向 .gitignore 添加忽略规则。" -ForegroundColor Green
+    } else {
+        Write-Host ".gitignore 中已包含所有必要规则。" -ForegroundColor Gray
     }
 } else {
-    # 创建基础 .gitignore
-@"
+    # 创建完整的 .gitignore
+    @"
 node_modules
 .DS_Store
 dist
 *.zip
+README.txt
+README_zh.txt
+README_en.txt
 "@ | Out-File -FilePath $gitignore -Encoding utf8
-    Write-Host "已创建 .gitignore 并添加基础规则。" -ForegroundColor Green
+    Write-Host "已创建 .gitignore 并添加完整规则。" -ForegroundColor Green
 }
 
 Write-Host "`n✅ 项目 '$projectName' 创建完成！" -ForegroundColor Green
 Write-Host "下一步：`n  cd $projectName`n  npm run dev  # 启动开发服务器" -ForegroundColor Cyan
 Write-Host "如需打包发布，请运行 .\scripts\build-and-pack.ps1" -ForegroundColor Cyan
+Write-Host "`n说明文件将在首次构建时由 AI 生成，请让 AI 协助完成。" -ForegroundColor Yellow
