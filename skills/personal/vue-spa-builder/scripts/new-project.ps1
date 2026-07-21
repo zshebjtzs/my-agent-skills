@@ -7,7 +7,7 @@ param(
 )
 
 # ============================================================
-# 辅助函数：写入文件（兼容 PS 5.1 无 BOM）
+# 辅助函数：写入文件（兼容 PS 5.1 无 BOM，支持新文件）
 # ============================================================
 function Write-FileUtf8NoBom {
     param(
@@ -15,7 +15,10 @@ function Write-FileUtf8NoBom {
         [string]$Content
     )
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText((Resolve-Path $Path), $Content, $utf8NoBom)
+    # 使用 GetUnresolvedProviderPathFromPSPath 而非 Resolve-Path
+    # 前者能处理不存在的路径，后者会崩溃
+    $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+    [System.IO.File]::WriteAllText($resolvedPath, $Content, $utf8NoBom)
 }
 
 # ============================================================
@@ -112,7 +115,8 @@ if ($routerInstalled) {
     
     # 获取技能包根目录（脚本所在目录的上级）
     $skillRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-    $templatePath = Join-Path $skillRoot "assets/router-index.js.template"
+    # 注意：文件名是 router-index.template.js（template 在前）
+    $templatePath = Join-Path $skillRoot "assets/router-index.template.js"
     
     if (Test-Path $templatePath) {
         Write-Host "正在从模板创建 src/router/index.js（Hash 模式）..." -ForegroundColor Cyan

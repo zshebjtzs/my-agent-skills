@@ -11,18 +11,6 @@ param(
 )
 
 # ============================================================
-# 辅助函数：写入文件（兼容 PS 5.1 无 BOM）
-# ============================================================
-function Write-FileUtf8NoBom {
-    param(
-        [string]$Path,
-        [string]$Content
-    )
-    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    [System.IO.File]::WriteAllText((Resolve-Path $Path), $Content, $utf8NoBom)
-}
-
-# ============================================================
 # 阶段 0：环境检查
 # ============================================================
 
