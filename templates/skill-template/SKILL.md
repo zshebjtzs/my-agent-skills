@@ -1,9 +1,6 @@
 ---
 name: skill-template
 description: 用一句话说明这个技能的作用和适用场景。
-version: 1.0.0
-author: zshebjtzs
-source: self-authored
 ---
 
 # 技能模板 — 使用指南
