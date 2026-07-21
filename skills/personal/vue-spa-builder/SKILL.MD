@@ -94,7 +94,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 |---------|------|----------|
 | `check-node.ps1` | 检查 Node.js 是否已安装，并输出版本号 | 在创建新项目或构建前，确保环境就绪 |
 | `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件 | 用户从头开始一个新工具时 |
-| `build-and-pack.ps1` | **主脚本**：执行 `npm run build`，将根目录的说明文件复制到 `dist/`，然后将 `dist/` 打包为根目录同级 `.zip` 文件 | 每次准备发布新版本时 |
+| `build-and-pack.ps1` | **主脚本**：执行 `npm run build`，将根目录的说明文件复制到 `dist/`，然后使用 `Compress-Archive` 将 `dist/` 打包为根目录同级 `.zip` 文件 | 每次准备发布新版本时 |
 
 **AI 使用原则**：
 - 若用户已有项目，只需构建打包，直接调用 `build-and-pack.ps1`。
@@ -115,11 +115,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
    - 在项目根目录创建或编辑 `vite.config.js`，设置 `base: './'`。
 7. **执行构建**：`npm run build`（生成 `dist/` 文件夹）。
 8. **复制说明文件**：将根目录的 `README.txt`（以及 `README_zh.txt`、`README_en.txt`）复制到 `dist/` 目录中。
-9. **打包分发**：
-   - 进入 `dist/` 目录，全选所有文件，压缩为 `.zip`（确保解压后直接看到 `index.html` 和说明文件）。
-   - 命名格式：`项目英文名-版本号.zip`（版本号由用户手动输入）。
-   - 将压缩包放在项目根目录的**同级目录**（即 `../`），避免被 Git 追踪。
-   - 同时打包源代码为 `Source Code.zip`（可选）。
+9. **打包分发**：使用 `Compress-Archive` 将 `dist/` 目录下的所有内容打包为 `.zip`（确保解压后直接看到 `index.html` 和说明文件），命名格式为 `项目英文名-版本号.zip`（版本号由用户手动输入），将压缩包放在项目根目录的**同级目录**（即 `../`），避免被 Git 追踪。同时可选择性打包源代码为 `Source Code.zip`。
 10. **更新 `.gitignore`**：在根目录 `.gitignore` 中添加 `*.zip` 以及三个说明文件（脚本会自动处理）。
 
 ---
@@ -168,7 +164,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | 1 | **History 模式在本地报错** | 必须改用 `createWebHashHistory` |
 | 2 | **资源路径错误导致空白** | 必须设置 `base: './'` |
 | 3 | **用户缓存旧版资源** | 构建时文件名带 hash（Vite 默认已做），告知用户强制刷新（Ctrl+F5） |
-| 4 | **压缩包解压后多一层 `dist` 文件夹** | 进入 `dist/` 内部全选压缩，确保解压即见 `index.html` |
+| 4 | **压缩包解压后多一层 `dist` 文件夹** | 打包时打包 `dist/` 内部的内容而非 `dist/` 本身 |
 | 5 | **.gitignore 未忽略 .zip** | 手动或脚本添加 `*.zip`，避免大文件进入仓库 |
 | 6 | **用户打开页面显示空白且无报错** | 检查是否在 IE 或旧版浏览器中运行，建议使用最新 Chrome/Edge |
 | 7 | **删除用户注释导致维护困难** | 牢记铁律 6.1，绝不删除注释 |
@@ -183,7 +179,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 - 在 Release 页面提供**两个压缩包**：
   - `项目名-版本号.zip`（即构建后的 `dist/` 打包，用户下载即用）。
-  - `Source Code.zip`（项目源代码，方便他人审查或二次开发）。
+  - `Source Code.zip`（项目源代码，方便他人审查或二次开发，**可选**）。
 - Release 说明中建议添加一句提示：“若打开后显示旧版本，请按 Ctrl+F5 强制刷新清除缓存。”
 - README.md 中应明确说明该项目为 Vue SPA，并注明使用方法（下载解压后双击 `index.html` 即可）。
 
@@ -221,7 +217,7 @@ my-tool/
 ## 10. 脚本使用示例（AI 指导用户）
 
 **场景 1：用户已有 Vue 项目，只想打包发布**
-> 请你打开 PowerShell，进入项目根目录，运行 `.\scripts\build-and-pack.ps1`，然后根据提示输入版本号（如 v1.0.0），脚本会自动构建并生成压缩包。
+> 请你打开 PowerShell，进入项目根目录，运行 `.\scripts\build-and-pack.ps1`，然后根据提示输入版本号（如 v1.0.0），脚本会自动构建并生成压缩包。如果不想生成源代码包，可加 `-SkipSourceZip` 参数。
 
 **场景 2：用户想新建一个 Vue 工具项目**
 > 请先运行 `.\scripts\check-node.ps1` 确认 Node 已安装，然后运行 `.\scripts\new-project.ps1`，按提示选择需要的依赖（Vue Router、Pinia 等）。项目创建后，我会帮你配置好路由模式和构建参数。
@@ -251,6 +247,7 @@ my-tool/
 |------|------|----------|
 | 1.0.0 | 2026-07-21 | 初始版本，整合离线分发流程、铁律、脚本 |
 | 1.1.0 | 2026-07-21 | 新增说明文件管理机制（README.txt 等），新增建议性功能章节（语言切换） |
+| 1.2.0 | 2026-07-21 | 修复脚本错误处理（Compress-Archive try/catch）；新增 `-SkipSourceZip` 参数；优化 .gitignore 检测；修复 PS 5.1 编码问题；自动创建路由文件模板 |
 
 ---
 

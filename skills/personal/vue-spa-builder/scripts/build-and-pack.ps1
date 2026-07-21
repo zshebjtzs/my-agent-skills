@@ -1,10 +1,30 @@
 # scripts/build-and-pack.ps1
 # 用途：构建 Vue 项目并打包为可离线运行的 zip 压缩包
 # 使用：在项目根目录下运行此脚本（需先安装 Node.js 依赖）
+# 参数：
+#   -version       版本号（如 v1.0.0），若未提供则交互式输入
+#   -SkipSourceZip 跳过源代码打包，仅生成项目压缩包
 
 param(
-    [string]$version = $(Read-Host "请输入版本号（如 v1.0.0）")
+    [string]$version = $(Read-Host "请输入版本号（如 v1.0.0）"),
+    [switch]$SkipSourceZip
 )
+
+# ============================================================
+# 辅助函数：写入文件（兼容 PS 5.1 无 BOM）
+# ============================================================
+function Write-FileUtf8NoBom {
+    param(
+        [string]$Path,
+        [string]$Content
+    )
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText((Resolve-Path $Path), $Content, $utf8NoBom)
+}
+
+# ============================================================
+# 阶段 0：环境检查
+# ============================================================
 
 # 检查是否在项目根目录（存在 package.json）
 if (-not (Test-Path "package.json")) {
@@ -68,17 +88,22 @@ if (-not (Test-Path "dist")) {
 }
 
 # ============================================================
-# 阶段 3：复制说明文件到 dist/
+# 阶段 3：复制说明文件到 dist/（带错误处理）
 # ============================================================
 Write-Host "正在复制说明文件到 dist/ 目录..." -ForegroundColor Cyan
 foreach ($file in $existingReadmes) {
-    Copy-Item -Path $file -Destination "dist\" -Force
-    Write-Host "  已复制: $file" -ForegroundColor Gray
+    try {
+        Copy-Item -Path $file -Destination "dist\" -Force -ErrorAction Stop
+        Write-Host "  已复制: $file" -ForegroundColor Gray
+    } catch {
+        Write-Host "错误：复制 $file 到 dist/ 失败：$_" -ForegroundColor Red
+        exit 1
+    }
 }
 Write-Host "说明文件复制完成。" -ForegroundColor Green
 
 # ============================================================
-# 阶段 4：打包 dist/ 为 zip
+# 阶段 4：打包 dist/ 为 zip（使用 try/catch）
 # ============================================================
 $projectName = (Get-Item -Path ".").Name
 $zipName = "$projectName-$version.zip"
@@ -86,35 +111,46 @@ $parentDir = (Get-Item -Path "..").FullName
 $zipPath = Join-Path $parentDir $zipName
 
 Write-Host "正在打包 dist/ 内容到 $zipPath ..." -ForegroundColor Cyan
-# 使用 PowerShell 原生 Compress-Archive（无需额外工具）
-Compress-Archive -Path "dist\*" -DestinationPath $zipPath -Force
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "打包失败，请检查权限或磁盘空间。" -ForegroundColor Red
+
+try {
+    Compress-Archive -Path "dist\*" -DestinationPath $zipPath -Force -ErrorAction Stop
+    Write-Host "打包完成！压缩包位于：$zipPath" -ForegroundColor Green
+} catch {
+    Write-Host "打包失败：$_" -ForegroundColor Red
     exit 1
 }
-Write-Host "打包完成！压缩包位于：$zipPath" -ForegroundColor Green
 
 # ============================================================
-# 阶段 5：打包源代码（可选）
+# 阶段 5：打包源代码（受 -SkipSourceZip 控制）
 # ============================================================
-$srcZipPath = Join-Path $parentDir "Source Code.zip"
-Write-Host "正在打包源代码到 $srcZipPath（不含 node_modules、dist 等）..." -ForegroundColor Cyan
-# 定义排除项
-$exclude = @("node_modules", "dist", ".git", "*.zip", ".vscode", ".idea")
-$itemsToZip = Get-ChildItem -Path "." -Exclude $exclude
-Compress-Archive -Path $itemsToZip.FullName -DestinationPath $srcZipPath -Force
-Write-Host "源代码打包完成。" -ForegroundColor Green
+if ($SkipSourceZip) {
+    Write-Host "已跳过源代码打包（-SkipSourceZip 指定）。" -ForegroundColor Gray
+} else {
+    $srcZipPath = Join-Path $parentDir "Source Code.zip"
+    Write-Host "正在打包源代码到 $srcZipPath（不含 node_modules、dist 等）..." -ForegroundColor Cyan
+    $exclude = @("node_modules", "dist", ".git", "*.zip", ".vscode", ".idea")
+    $itemsToZip = Get-ChildItem -Path "." -Exclude $exclude
+    
+    try {
+        Compress-Archive -Path $itemsToZip.FullName -DestinationPath $srcZipPath -Force -ErrorAction Stop
+        Write-Host "源代码打包完成。" -ForegroundColor Green
+    } catch {
+        Write-Host "源代码打包失败：$_" -ForegroundColor Red
+        exit 1
+    }
+}
 
 # ============================================================
-# 阶段 6：更新 .gitignore
+# 阶段 6：更新 .gitignore（使用 Select-String 正则匹配）
 # ============================================================
 $gitignore = ".gitignore"
 if (Test-Path $gitignore) {
     $content = Get-Content $gitignore
     $needUpdate = $false
     
-    # 检查 *.zip
-    if ($content -notcontains "*.zip") {
+    # 检查 *.zip（使用 Select-String 匹配整行，更稳健）
+    $zipRuleFound = $content | Select-String -Pattern '^\s*\*\.zip\s*$' -Quiet
+    if (-not $zipRuleFound) {
         Add-Content $gitignore "`n# Ignore release packages`n*.zip"
         Write-Host "已向 .gitignore 添加 '*.zip' 规则。" -ForegroundColor Yellow
         $needUpdate = $true
@@ -122,7 +158,8 @@ if (Test-Path $gitignore) {
     
     # 检查三个说明文件
     foreach ($file in $readmeFiles) {
-        if ($content -notcontains $file) {
+        $fileRuleFound = $content | Select-String -Pattern "^\s*$([regex]::Escape($file))\s*$" -Quiet
+        if (-not $fileRuleFound) {
             Add-Content $gitignore "`n# Ignore readme files for release`n$file"
             Write-Host "已向 .gitignore 添加 '$file' 规则。" -ForegroundColor Yellow
             $needUpdate = $true
@@ -143,5 +180,9 @@ if (Test-Path $gitignore) {
 # ============================================================
 # 完成
 # ============================================================
-Write-Host "`n全部完成！请检查以下文件：`n  - $zipPath`n  - $srcZipPath" -ForegroundColor Green
-Write-Host "你可以将这两个文件上传到 GitHub Release。" -ForegroundColor Cyan
+Write-Host "`n全部完成！" -ForegroundColor Green
+Write-Host "  - 发行包: $zipPath" -ForegroundColor Cyan
+if (-not $SkipSourceZip) {
+    Write-Host "  - 源码包: $srcZipPath" -ForegroundColor Cyan
+}
+Write-Host "你可以将以上文件上传到 GitHub Release。" -ForegroundColor Cyan
