@@ -133,15 +133,6 @@ if ($routerInstalled) {
 # 阶段 5：更新 .gitignore（无 BOM）
 # ============================================================
 $gitignore = ".gitignore"
-$ignoreRules = @(
-    "# Ignore release packages",
-    "*.zip",
-    "",
-    "# Ignore readme files for release",
-    "README.txt",
-    "README_zh.txt",
-    "README_en.txt"
-)
 
 if (Test-Path $gitignore) {
     $content = Get-Content $gitignore
