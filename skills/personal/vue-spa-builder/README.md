@@ -59,8 +59,8 @@ vue-spa-builder/
 │   ├── vite-config-reference.md
 │   └── router-reference.md
 └── assets/                  # 配置模板文件
-    ├── vite.config.js.template
-    └── router-index.js.template
+    ├── vite.config.template.js
+    └── router-index.template.js
 ```
 
 ## 依赖要求
