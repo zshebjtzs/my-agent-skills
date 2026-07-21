@@ -1,4 +1,7 @@
-# Vite 配置参考（离线 SPA）
+---
+agent_guidance: reference
+description: 此文件为 Vite 配置的技术参考文档，AI 在修改 vite.config.js 时可查阅，但具体强制规则以 SKILL.md 为准。
+---
 
 ## 强制配置项
 

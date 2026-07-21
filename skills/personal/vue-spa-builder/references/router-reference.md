@@ -1,4 +1,7 @@
-# Vue Router 配置参考（Hash 模式）
+---
+agent_guidance: reference
+description: 此文件为 Vue Router 配置的技术参考文档，AI 在修改路由配置时可查阅，但具体强制规则以 SKILL.md 为准。
+---
 
 ## 强制配置项
 
