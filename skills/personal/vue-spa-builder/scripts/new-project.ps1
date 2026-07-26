@@ -22,6 +22,18 @@ function Write-FileUtf8NoBom {
 }
 
 # ============================================================
+# Helper: Write JSON config file
+# ============================================================
+function Write-ConfigFile {
+    param(
+        [string]$Path,
+        [hashtable]$Data
+    )
+    $json = $Data | ConvertTo-Json -Depth 2
+    Write-FileUtf8NoBom -Path $Path -Content $json
+}
+
+# ============================================================
 # Phase 0: Environment check
 # ============================================================
 
@@ -198,7 +210,38 @@ local/
 }
 
 # ============================================================
-# Phase 6: Completion
+# Phase 6: GitHub repository configuration
+# ============================================================
+Write-Host "`n--- GitHub Repository Setup ---" -ForegroundColor Cyan
+$githubEnabled = Read-Host "Do you plan to open-source this project on GitHub? (y/n)"
+$configData = @{}
+
+if ($githubEnabled -eq 'y' -or $githubEnabled -eq 'Y') {
+    $username = Read-Host "Enter your GitHub username"
+    $repo = Read-Host "Enter the repository name"
+    
+    if ($username -and $repo) {
+        $configData = @{
+            github = @{
+                enabled = $true
+                username = $username
+                repo = $repo
+            }
+        }
+        Write-ConfigFile -Path ".skill-config.json" -Data $configData
+        Write-Host "[OK] GitHub configuration saved to .skill-config.json" -ForegroundColor Green
+        Write-Host "  Repo URL: https://github.com/$username/$repo" -ForegroundColor Gray
+    } else {
+        Write-Host "[WARN] Username or repository name was empty. Skipping GitHub configuration." -ForegroundColor Yellow
+        Write-Host "You can configure it later by telling the AI: 'Add GitHub info: username X, repo Y'" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "GitHub configuration skipped. You can add it later by telling the AI." -ForegroundColor Gray
+    Write-Host "Example: 'Add GitHub info: username myname, repo my-tool'" -ForegroundColor Gray
+}
+
+# ============================================================
+# Phase 7: Completion
 # ============================================================
 Write-Host "`n[OK] Project '$projectName' created successfully!" -ForegroundColor Green
 Write-Host "Next steps:" -ForegroundColor Cyan

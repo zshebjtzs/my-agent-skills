@@ -29,7 +29,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | HTTP 库 | 推荐 Axios（可选，但通常用于与后端交互） |
 | 其他工具 | Vditor、KaTeX、Markdown 渲染等按需引入 |
 
-> **违反以上任意一条强制项，构建后的产物将无法实现“双击即开”，AI 必须严格遵守。**
+> **违反以上任意一条强制项，构建后的产物将无法实现"双击即开"，AI 必须严格遵守。**
 
 ---
 
@@ -41,9 +41,42 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 |------|------|
 | **脚本语言** | **必须使用纯英文**：所有注释、`Write-Host` 消息、`Read-Host` 提示必须使用英文，不得包含中文或其他非 ASCII 字符 |
 | **文件编码** | **必须保存为 UTF-8 with BOM**：确保 PowerShell 5 能正确识别编码 |
-| **理由** | PowerShell 5 默认使用 Windows-1252（ANSI）编码解析 `.ps1` 文件，UTF-8 编码的中文字符会被错误解析，导致语法解析失败（如“缺少右括号”等错误） |
+| **理由** | PowerShell 5 默认使用 Windows-1252（ANSI）编码解析 `.ps1` 文件，UTF-8 编码的中文字符会被错误解析，导致语法解析失败（如"缺少右括号"等错误） |
 
 > **AI 在创建或修改任何 `.ps1` 文件时，必须使用纯英文内容和 UTF-8 with BOM 编码。**
+
+---
+
+## 2.6 项目配置文件（`.skill-config.json`）
+
+本技能在项目根目录维护一个 `.skill-config.json` 文件，用于存储构建相关的配置信息。该文件应被 `.gitignore` 忽略（由 `new-project.ps1` 自动添加）。
+
+### 当前支持的字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `github.enabled` | boolean | 是否配置了 GitHub 仓库信息 |
+| `github.username` | string | GitHub 用户名 |
+| `github.repo` | string | 仓库名称 |
+
+### 示例
+
+```json
+{
+  "github": {
+    "enabled": true,
+    "username": "your-username",
+    "repo": "your-tool-name"
+  }
+}
+```
+
+### AI 使用规则
+
+- **首次构建时**：如果 `.skill-config.json` 存在且 `github.enabled` 为 `true`，AI 生成 `README.txt` 时**必须包含** GitHub 仓库地址，格式为 `https://github.com/用户名/仓库名`
+- **未配置时**：AI 生成 `README.txt` 时**不包含** GitHub 地址行
+- **用户补充时**：用户可随时说"添加 GitHub 信息：用户名 xxx，仓库 yyy"，AI 应创建或更新 `.skill-config.json` 文件，并在后续构建时生效
+- **更改时**：用户可随时要求修改 GitHub 信息，AI 更新配置文件即可
 
 ---
 
@@ -61,7 +94,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ### 3.2 首次构建流程（AI 必须执行）
 
-当 AI 检测到项目根目录**不存在**任何说明文件时，判定为“首次构建”。AI 必须：
+当 AI 检测到项目根目录**不存在**任何说明文件时，判定为"首次构建"。AI 必须：
 
 1. **向用户询问**：
    > "This is the first build. Please select the readme language version:
@@ -71,6 +104,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 2. 根据用户选择，在**项目根目录**生成对应的说明文件，内容包含：
    - 项目名称（从 `package.json` 读取）
    - 版本号（用户输入的版本号）
+   - GitHub 仓库地址（如果 `.skill-config.json` 中存在且 `github.enabled` 为 `true`，格式为 `https://github.com/用户名/仓库名`，否则省略此行）
    - 功能简介（根据项目实际功能撰写）
    - 使用方法："Extract the zip and double-click `index.html` to use in your browser"
    - 环境要求："Recommended to use latest Chrome/Edge browser"
@@ -79,7 +113,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ### 3.3 后续构建流程（AI 必须执行）
 
-当 AI 检测到项目根目录**已存在**说明文件时，判定为“后续构建”。AI 必须：
+当 AI 检测到项目根目录**已存在**说明文件时，判定为"后续构建"。AI 必须：
 
 1. **不再询问**语言版本选择。
 2. 根据**本轮开发的实际内容**（从对话上下文中获取），对说明文件进行**适度修改**：
@@ -87,13 +121,13 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
    - 新增功能描述
    - 修正已知问题说明
    - 调整不准确的描述
+   - **如果 `.skill-config.json` 中的 GitHub 信息发生变化，同步更新说明文件中的仓库地址**
 3. 修改完成后，保存到项目根目录。
 
-### 3.4 中途更改语言版本
+### 3.4 中途更改语言版本或 GitHub 信息
 
-用户可随时向 AI 提出更改语言版本（如"改成双语版"或"只要中文版"），AI 应：
-- 在根目录创建缺失的文件或删除多余的文件。
-- 告知用户下次构建时将按新配置打包。
+- **语言版本**：用户可随时向 AI 提出更改语言版本（如"改成双语版"或"只要中文版"），AI 应在根目录创建缺失的文件或删除多余的文件，并告知用户下次构建时将按新配置打包。
+- **GitHub 信息**：用户可随时说"添加/修改 GitHub 信息：用户名 xxx，仓库 yyy"，AI 应更新 `.skill-config.json`，并在下次构建时反映到说明文件中。
 
 ### 3.5 构建脚本的职责
 
@@ -108,7 +142,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | 脚本文件 | 用途 | 何时使用 |
 |---------|------|----------|
 | `check-node.ps1` | 检查 Node.js 是否已安装，并输出版本号 | 在创建新项目或构建前，确保环境就绪 |
-| `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件。**默认自动安装 `vite-plugin-singlefile`** | 用户从头开始一个新工具时 |
+| `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件。**默认自动安装 `vite-plugin-singlefile`**，并询问 GitHub 仓库信息 | 用户从头开始一个新工具时 |
 | `build-and-pack.ps1` | **主脚本**：执行 `npm run build`，将根目录的说明文件复制到 `dist/`，然后使用 `Compress-Archive` 将 `dist/` 打包为根目录同级 `.zip` 文件 | 每次准备发布新版本时 |
 
 **AI 使用原则**：
@@ -267,13 +301,14 @@ my-tool/
 │   ├── views/                # Page-level components
 │   ├── App.vue
 │   └── main.js
+├── .skill-config.json        # Skill configuration (GitHub info, etc.) — ignored by .gitignore
 ├── README.txt                # Readme file (project root, ignored by .gitignore)
 ├── README_zh.txt             # (optional)
 ├── README_en.txt             # (optional)
 ├── index.html
 ├── package.json
 ├── vite.config.js            # Must include vite-plugin-singlefile
-├── .gitignore                # Should include *.zip, README.txt, README_zh.txt, README_en.txt
+├── .gitignore                # Should include *.zip, README.txt, README_zh.txt, README_en.txt, .skill-config.json
 └── README.md                 # Developer-facing project description (committed to Git)
 ```
 
@@ -285,7 +320,7 @@ my-tool/
 > Please open PowerShell, navigate to your project root, and run `.\scripts\build-and-pack.ps1`. Enter the version number (e.g., v1.0.0) when prompted. The script will build and generate the release package. Add `-SkipSourceZip` if you don't want the source code package.
 
 **Scenario 2: User wants to create a new Vue tool project**
-> First run `.\scripts\check-node.ps1` to confirm Node.js is installed, then run `.\scripts\new-project.ps1` and select the dependencies you need (Vue Router, Pinia, etc.). `vite-plugin-singlefile` will be installed automatically. I'll help you configure the router and build settings.
+> First run `.\scripts\check-node.ps1` to confirm Node.js is installed, then run `.\scripts\new-project.ps1` and select the dependencies you need (Vue Router, Pinia, etc.). You will also be asked whether you plan to open-source the project on GitHub — if yes, provide your username and repository name. `vite-plugin-singlefile` will be installed automatically. I'll help you configure the router and build settings.
 
 **Scenario 3: AI-assisted development**
 > AI will follow all rules in this skill, preserve comments, avoid refactoring script without permission, and confirm CSS design style before writing any styles.
@@ -315,6 +350,7 @@ my-tool/
 | 1.2.0 | 2026-07-21 | 修复脚本错误处理（Compress-Archive try/catch）；新增 `-SkipSourceZip` 参数；优化 .gitignore 检测；修复 PS 5.1 编码问题；自动创建路由文件模板 |
 | 1.3.0 | 2026-07-22 | **关键修复**：新增 `vite-plugin-singlefile` 强制依赖，解决 `file://` 协议下 CORS 导致的白屏问题；新增专题章节说明；更新配置模板 |
 | 1.4.0 | 2026-07-26 | **Windows PowerShell 兼容性**：所有 `.ps1` 脚本改为纯英文内容 + UTF-8 with BOM 编码，解决 PowerShell 5 中文解析错误问题 |
+| 1.5.0 | 2026-07-26 | 新增 `.skill-config.json` 配置文件，支持 GitHub 仓库信息记录；说明文件自动包含仓库地址；完善 `.gitignore` 模板 |
 
 ---
 
