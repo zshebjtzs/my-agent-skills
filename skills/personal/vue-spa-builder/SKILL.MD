@@ -133,6 +133,10 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 `build-and-pack.ps1` 在 `npm run build` 完成后，会**检测根目录的说明文件**并将其**复制到 `dist/` 目录中**，然后打包。若根目录不存在任何说明文件，脚本会报错并退出。
 
+**从 v1.6.0 开始**，`build-and-pack.ps1` 还会：
+- 自动读取 `.skill-config.json` 中的 GitHub 信息，并注入到 README 文件中（可通过 `-SkipGitHubCheck` 跳过）
+- 执行构建后校验（检测外部 JS/CSS 引用、绝对路径、文件大小），可通过 `-SkipValidation` 跳过
+
 ---
 
 ## 4. 脚本工具（位于 `scripts/`）
@@ -281,6 +285,7 @@ export default defineConfig({
   - `Source Code.zip`（项目源代码，方便他人审查或二次开发，**可选**）。
 - Release 说明中建议添加一句提示："If the old version appears after opening, press Ctrl+F5 to force refresh the cache."
 - README.md 中应明确说明该项目为 Vue SPA，并注明使用方法（下载解压后双击 `index.html` 即可）。
+- 发布前参考 `CHANGELOG.md` 中的 Release Checklist 逐项确认。
 
 ---
 
@@ -305,6 +310,7 @@ my-tool/
 ├── README.txt                # Readme file (project root, ignored by .gitignore)
 ├── README_zh.txt             # (optional)
 ├── README_en.txt             # (optional)
+├── CHANGELOG.md              # Release changelog and checklist
 ├── index.html
 ├── package.json
 ├── vite.config.js            # Must include vite-plugin-singlefile
@@ -351,6 +357,7 @@ my-tool/
 | 1.3.0 | 2026-07-22 | **关键修复**：新增 `vite-plugin-singlefile` 强制依赖，解决 `file://` 协议下 CORS 导致的白屏问题；新增专题章节说明；更新配置模板 |
 | 1.4.0 | 2026-07-26 | **Windows PowerShell 兼容性**：所有 `.ps1` 脚本改为纯英文内容 + UTF-8 with BOM 编码，解决 PowerShell 5 中文解析错误问题 |
 | 1.5.0 | 2026-07-26 | 新增 `.skill-config.json` 配置文件，支持 GitHub 仓库信息记录；说明文件自动包含仓库地址；完善 `.gitignore` 模板 |
+| 1.6.0 | 2026-07-26 | `build-and-pack.ps1` 自动读取 `.skill-config.json` 注入 GitHub 信息（`-SkipGitHubCheck` 跳过）；新增构建后校验（外部引用检测 + 路径检测 + 文件大小警告）；新增 `CHANGELOG.md` Release Checklist |
 
 ---
 
