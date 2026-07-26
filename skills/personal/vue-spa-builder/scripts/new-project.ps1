@@ -85,17 +85,34 @@ if ($extraDeps.Count -gt 0) {
 }
 
 # ============================================================
+# 阶段 2.5：无条件安装 vite-plugin-singlefile（强制依赖）
+# ============================================================
+Write-Host "正在安装 vite-plugin-singlefile（用于离线单文件打包）..." -ForegroundColor Cyan
+npm install vite-plugin-singlefile --save-dev
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "vite-plugin-singlefile 安装失败，请手动执行：npm install vite-plugin-singlefile --save-dev" -ForegroundColor Red
+    # 不退出，允许用户后续手动安装
+}
+
+# ============================================================
 # 阶段 3：强制修改 vite.config.js（无 BOM）
 # ============================================================
-Write-Host "正在设置 vite.config.js (base: './') ..." -ForegroundColor Cyan
+Write-Host "正在设置 vite.config.js（含 vite-plugin-singlefile）..." -ForegroundColor Cyan
 $viteConfig = @"
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { viteSingleFile } from 'vite-plugin-singlefile'
 
-// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [vue()],
-  base: './'  // 强制相对路径，支持离线运行
+  plugins: [
+    vue(),
+    viteSingleFile(),  // 强制内联所有 JS/CSS，解决 file:// 协议 CORS 问题
+  ],
+  base: './',  // 强制相对路径，支持离线运行
+  build: {
+    target: 'es2015',
+    assetsInlineLimit: 0,  // 图片等资源保持外部引用
+  }
 })
 "@
 Write-FileUtf8NoBom -Path "vite.config.js" -Content $viteConfig

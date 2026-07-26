@@ -24,6 +24,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | 组件 API | **必须使用组合式 API 和 `<script setup>` 语法** |
 | 路由模式 | **必须使用 `createWebHashHistory()`**（原因：History 模式在 `file://` 协议下会 404） |
 | 构建配置 | `vite.config.js` 中 **必须设置 `base: './'`**（相对路径，确保资源在本地加载） |
+| 单文件打包 | **必须使用 `vite-plugin-singlefile`**（原因：`file://` 协议下浏览器禁止加载任何外部脚本，必须将所有 JS/CSS 内联到 HTML 中） |
 | 状态管理 | 推荐 Pinia（可选） |
 | HTTP 库 | 推荐 Axios（可选，但通常用于与后端交互） |
 | 其他工具 | Vditor、KaTeX、Markdown 渲染等按需引入 |
@@ -93,7 +94,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | 脚本文件 | 用途 | 何时使用 |
 |---------|------|----------|
 | `check-node.ps1` | 检查 Node.js 是否已安装，并输出版本号 | 在创建新项目或构建前，确保环境就绪 |
-| `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件 | 用户从头开始一个新工具时 |
+| `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件。**默认自动安装 `vite-plugin-singlefile`** | 用户从头开始一个新工具时 |
 | `build-and-pack.ps1` | **主脚本**：执行 `npm run build`，将根目录的说明文件复制到 `dist/`，然后使用 `Compress-Archive` 将 `dist/` 打包为根目录同级 `.zip` 文件 | 每次准备发布新版本时 |
 
 **AI 使用原则**：
@@ -112,8 +113,11 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 5. **修改路由模式**（强制）：
    - 在 `src/router/index.js` 中，将 `createWebHistory()` 替换为 `createWebHashHistory()`。
 6. **修改构建配置**（强制）：
-   - 在项目根目录创建或编辑 `vite.config.js`，设置 `base: './'`。
-7. **执行构建**：`npm run build`（生成 `dist/` 文件夹）。
+   - 在项目根目录创建或编辑 `vite.config.js`，必须包含：
+     - `base: './'`
+     - `vite-plugin-singlefile` 插件
+     - `assetsInlineLimit: 0`（图片等资源保持外部引用）
+7. **执行构建**：`npm run build`（生成 `dist/` 文件夹，所有 JS/CSS 内联到 `index.html`）。
 8. **复制说明文件**：将根目录的 `README.txt`（以及 `README_zh.txt`、`README_en.txt`）复制到 `dist/` 目录中。
 9. **打包分发**：使用 `Compress-Archive` 将 `dist/` 目录下的所有内容打包为 `.zip`（确保解压后直接看到 `index.html` 和说明文件），命名格式为 `项目英文名-版本号.zip`（版本号由用户手动输入），将压缩包放在项目根目录的**同级目录**（即 `../`），避免被 Git 追踪。同时可选择性打包源代码为 `Source Code.zip`。
 10. **更新 `.gitignore`**：在根目录 `.gitignore` 中添加 `*.zip` 以及三个说明文件（脚本会自动处理）。
@@ -146,6 +150,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 ### 6.4 依赖安装需授权
 - 若需要安装新 npm 包，AI 必须**先告知用户包名、用途和版本**，获得同意后再执行 `npm install`。
 - 禁止安装与当前任务无关的大型框架或过多依赖。
+- **例外**：`vite-plugin-singlefile` 是本技能的强制依赖，`new-project.ps1` 会自动安装，无需逐次询问。
 
 ### 6.5 不确定时必追问
 - 遇到任何不明确的业务逻辑、字段名、交互方式，AI 必须主动提问，不得臆测。
@@ -157,7 +162,52 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ---
 
-## 7. 常见坑点与教训（来自实战）
+## 7. 关键专题：file:// 协议下的 CORS 限制
+
+### 7.1 问题根源
+
+**Chrome 及其他现代浏览器在 `file://` 协议下，禁止通过 `<script src="...">` 或 `<link rel="stylesheet" href="...">` 加载任何外部文件。** 无论是否使用 `type="module"`，无论是否使用 `nomodule` 降级方案，任何外部脚本或样式表都会被 CORS 策略拦截。
+
+这是浏览器安全策略的硬性限制，**无法通过任何 Vite 配置绕过**。
+
+错误表现：
+```
+Access to script at 'file:///.../assets/index-xxx.js' from origin 'null' has been blocked by CORS policy
+```
+
+### 7.2 唯一解决方案
+
+**必须将所有 JavaScript 和 CSS 代码内联到 `index.html` 中**，使页面不依赖任何外部脚本或样式表文件。
+
+使用 `vite-plugin-singlefile` 插件实现：
+
+```javascript
+import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+import { viteSingleFile } from 'vite-plugin-singlefile'
+
+export default defineConfig({
+  plugins: [
+    vue(),
+    viteSingleFile(),  // 强制内联所有 JS/CSS
+  ],
+  base: './',
+  build: {
+    target: 'es2015',
+    assetsInlineLimit: 0,  // 图片等资源保持外部引用（图片加载不受 CORS 限制）
+  }
+})
+```
+
+### 7.3 为什么图片可以保持外部引用？
+
+图片、字体等资源通过 `<img src="...">` 或 CSS `url()` 加载，**不受 CORS 限制**，可以安全地作为外部文件存在。只有 `<script>` 和 `<link rel="stylesheet">` 受到 `file://` 协议的限制。
+
+因此推荐配置 `assetsInlineLimit: 0`，只内联 JS/CSS，图片保持外部引用，以控制 `index.html` 的大小。
+
+---
+
+## 8. 常见坑点与教训（来自实战）
 
 | # | 坑点 | 正确做法 |
 |---|------|----------|
@@ -172,10 +222,11 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | 9 | **未确认设计风格就写 CSS** | 牢记铁律 6.3，先确认后编码 |
 | 10 | **新文件忘记写路径注释** | 每个新代码文件第一行注释完整相对路径（如 `// src/views/MyTool.vue`） |
 | 11 | **发行包缺少说明文件** | 构建前确保根目录有说明文件，构建后复制到 `dist/` 中 |
+| 12 | **双击 index.html 白屏，CORS 报错** | **必须使用 `vite-plugin-singlefile`** 将所有 JS/CSS 内联到 HTML 中。这是 `file://` 协议的硬性限制，任何外部脚本加载都会被拦截。图片等资源可保持外部引用 |
 
 ---
 
-## 8. GitHub Release 发布规范（建议）
+## 9. GitHub Release 发布规范（建议）
 
 - 在 Release 页面提供**两个压缩包**：
   - `项目名-版本号.zip`（即构建后的 `dist/` 打包，用户下载即用）。
@@ -185,13 +236,13 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ---
 
-## 9. 项目结构速查（典型）
+## 10. 项目结构速查（典型）
 
 ```
 my-tool/
 ├── dist/                     # 构建输出（不提交 Git）
-│   ├── index.html
-│   ├── assets/
+│   ├── index.html            # 所有 JS/CSS 已内联，可直接双击运行
+│   ├── favicon.svg           # 图片等资源保持外部引用
 │   ├── README.txt            # 构建时从根目录复制
 │   └── README_en.txt         # （如有）
 ├── src/
@@ -207,31 +258,31 @@ my-tool/
 ├── README_en.txt             # （可选）
 ├── index.html
 ├── package.json
-├── vite.config.js            # 必须设置 base: './'
+├── vite.config.js            # 必须包含 vite-plugin-singlefile
 ├── .gitignore                # 应包含 *.zip、README.txt、README_zh.txt、README_en.txt
 └── README.md                 # 面向开发者的项目说明（提交到 Git）
 ```
 
 ---
 
-## 10. 脚本使用示例（AI 指导用户）
+## 11. 脚本使用示例（AI 指导用户）
 
 **场景 1：用户已有 Vue 项目，只想打包发布**
 > 请你打开 PowerShell，进入项目根目录，运行 `.\scripts\build-and-pack.ps1`，然后根据提示输入版本号（如 v1.0.0），脚本会自动构建并生成压缩包。如果不想生成源代码包，可加 `-SkipSourceZip` 参数。
 
 **场景 2：用户想新建一个 Vue 工具项目**
-> 请先运行 `.\scripts\check-node.ps1` 确认 Node 已安装，然后运行 `.\scripts\new-project.ps1`，按提示选择需要的依赖（Vue Router、Pinia 等）。项目创建后，我会帮你配置好路由模式和构建参数。
+> 请先运行 `.\scripts\check-node.ps1` 确认 Node 已安装，然后运行 `.\scripts\new-project.ps1`，按提示选择需要的依赖（Vue Router、Pinia 等）。项目创建后，`vite-plugin-singlefile` 会自动安装，我会帮你配置好路由模式和构建参数。
 
 **场景 3：AI 直接协助开发**
 > AI 会遵循本技能所有铁律，在修改代码时保留注释、不擅自重构 script，并在修改样式前先与你确认设计风格。
 
 ---
 
-## 11. 建议性功能（非铁律）
+## 12. 建议性功能（非铁律）
 
 以下功能由 AI 默认提供，但开发者可随时要求移除：
 
-### 11.1 语言快速切换（国际化）
+### 12.1 语言快速切换（国际化）
 
 - **功能描述**：在应用的首页/入口页面（路由 `path: '/'` 对应的视图组件）添加一个下拉菜单，用于切换界面语言（如中/英文），利用 Vue 的响应式特性实现**无刷新立即切换**。
 - **技术实现**：使用 `vue-i18n`，语言包存放在 `src/locales/` 下，用户偏好保存在 `localStorage` 中。
@@ -241,13 +292,14 @@ my-tool/
 
 ---
 
-## 12. 版本与更新记录
+## 13. 版本与更新记录
 
 | 版本 | 日期 | 变更说明 |
 |------|------|----------|
 | 1.0.0 | 2026-07-21 | 初始版本，整合离线分发流程、铁律、脚本 |
 | 1.1.0 | 2026-07-21 | 新增说明文件管理机制（README.txt 等），新增建议性功能章节（语言切换） |
 | 1.2.0 | 2026-07-21 | 修复脚本错误处理（Compress-Archive try/catch）；新增 `-SkipSourceZip` 参数；优化 .gitignore 检测；修复 PS 5.1 编码问题；自动创建路由文件模板 |
+| 1.3.0 | 2026-07-22 | **关键修复**：新增 `vite-plugin-singlefile` 强制依赖，解决 `file://` 协议下 CORS 导致的白屏问题；新增专题章节说明；更新配置模板 |
 
 ---
 

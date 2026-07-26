@@ -8,19 +8,17 @@ description: 此文件为 Vite 配置的技术参考文档，AI 在修改 vite.c
 ```javascript
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { viteSingleFile } from 'vite-plugin-singlefile'
 
 export default defineConfig({
-  plugins: [vue()],
+  plugins: [
+    vue(),
+    viteSingleFile(),  // 强制内联所有 JS/CSS，解决 file:// 协议 CORS 问题
+  ],
   base: './',   // 必须设置为相对路径，否则本地打开会加载不到资源
-  // 其他可选配置：
-  server: {
-    port: 3000,
-    open: true
-  },
   build: {
-    outDir: 'dist',
-    assetsDir: 'assets',
-    // 文件名 hash 默认已开启，用于缓存控制
+    target: 'es2015',
+    assetsInlineLimit: 0,  // 图片等资源保持外部引用（图片不受 CORS 限制）
   }
 })
 ```
@@ -29,6 +27,12 @@ export default defineConfig({
 
 - 默认 `base: '/'` 表示从根路径加载资源（如 `/js/app.js`），在 `file://` 协议下会被解析为 `file:///js/app.js`，无法找到文件。
 - 设为 `'./'` 后，资源路径变为相对路径（如 `./js/app.js`），与 `index.html` 同目录，可正常加载。
+
+## 为什么必须用 vite-plugin-singlefile？
+
+- Chrome 在 `file://` 协议下禁止加载任何外部脚本（无论是否使用 `type="module"`），会触发 CORS 错误。
+- `vite-plugin-singlefile` 将所有 JavaScript 和 CSS 内联到 `index.html` 中，使页面不依赖任何外部脚本文件，彻底解决 CORS 问题。
+- 图片、字体等资源通过 `<img>` 或 CSS `url()` 加载，不受 CORS 限制，因此设置 `assetsInlineLimit: 0` 让它们保持外部引用，控制 HTML 文件大小。
 
 ## 其他常用配置
 
