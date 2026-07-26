@@ -177,7 +177,7 @@ if (Test-Path $gitignore) {
         Write-Host ".gitignore already contains all required rules." -ForegroundColor Gray
     }
 } else {
-    # Create complete .gitignore (UTF-8 without BOM)
+    # Create complete .gitignore (UTF-8 without BOM) with standard security entries
     $gitignoreContent = @"
 node_modules
 .DS_Store
@@ -186,6 +186,12 @@ dist
 README.txt
 README_zh.txt
 README_en.txt
+
+# Environment files (if you add a backend later)
+.env
+.env.*
+*.log
+local/
 "@
     Write-FileUtf8NoBom -Path $gitignore -Content $gitignoreContent
     Write-Host "Created .gitignore with complete rules." -ForegroundColor Green
