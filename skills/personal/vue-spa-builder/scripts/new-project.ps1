@@ -183,6 +183,13 @@ if (Test-Path $gitignore) {
         }
     }
     
+    # Check .skill-config.json
+    $configRuleFound = $content | Select-String -Pattern '^\s*\.skill-config\.json\s*$' -Quiet
+    if (-not $configRuleFound) {
+        Add-Content $gitignore "`n# Ignore skill configuration`n.skill-config.json"
+        $needUpdate = $true
+    }
+    
     if ($needUpdate) {
         Write-Host "Added ignore rules to .gitignore." -ForegroundColor Green
     } else {
@@ -198,6 +205,7 @@ dist
 README.txt
 README_zh.txt
 README_en.txt
+.skill-config.json
 
 # Environment files (if you add a backend later)
 .env
