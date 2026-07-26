@@ -1,13 +1,13 @@
-# scripts/new-project.ps1
-# 用途：交互式创建 Vue 3 + Vite 项目，并配置强制项（base 和 Hash 路由）
-# 使用：在希望创建项目的父目录下运行
+﻿# scripts/new-project.ps1
+# Purpose: Interactively create a Vue 3 + Vite project with mandatory configurations (base and Hash routing)
+# Usage: Run in the parent directory where you want to create the project
 
 param(
-    [string]$projectName = $(Read-Host "请输入项目名称（英文小写，如 my-tool）")
+    [string]$projectName = $(Read-Host "Enter project name (lowercase, e.g., my-tool)")
 )
 
 # ============================================================
-# 辅助函数：写入文件（兼容 PS 5.1 无 BOM，支持新文件）
+# Helper: Write file with UTF-8 without BOM (supports new files)
 # ============================================================
 function Write-FileUtf8NoBom {
     param(
@@ -15,53 +15,53 @@ function Write-FileUtf8NoBom {
         [string]$Content
     )
     $utf8NoBom = New-Object System.Text.UTF8Encoding $false
-    # 使用 GetUnresolvedProviderPathFromPSPath 而非 Resolve-Path
-    # 前者能处理不存在的路径，后者会崩溃
+    # Use GetUnresolvedProviderPathFromPSPath instead of Resolve-Path
+    # The former can handle non-existent paths, the latter would crash
     $resolvedPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
     [System.IO.File]::WriteAllText($resolvedPath, $Content, $utf8NoBom)
 }
 
 # ============================================================
-# 阶段 0：环境检查
+# Phase 0: Environment check
 # ============================================================
 
-# 检查是否已存在同名文件夹
+# Check if folder already exists
 if (Test-Path $projectName) {
-    Write-Host "错误：文件夹 '$projectName' 已存在，请更换名称。" -ForegroundColor Red
+    Write-Host "[ERROR] Folder '$projectName' already exists. Please choose a different name." -ForegroundColor Red
     exit 1
 }
 
-# 检查 Node 环境
+# Check Node environment
 $nodeVersion = node -v 2>$null
 if (-not $nodeVersion) {
-    Write-Host "错误：未检测到 Node.js，请先安装 Node.js。" -ForegroundColor Red
-    Write-Host "下载地址：https://nodejs.org/" -ForegroundColor Yellow
+    Write-Host "[ERROR] Node.js not detected. Please install Node.js first." -ForegroundColor Red
+    Write-Host "Download: https://nodejs.org/" -ForegroundColor Yellow
     exit 1
 }
 
 # ============================================================
-# 阶段 1：创建 Vue 项目
+# Phase 1: Create Vue project
 # ============================================================
-Write-Host "正在使用 Vite 创建 Vue 3 项目：$projectName ..." -ForegroundColor Cyan
+Write-Host "Creating Vue 3 project with Vite: $projectName ..." -ForegroundColor Cyan
 npm create vite@latest $projectName -- --template vue
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "项目创建失败，请检查网络或手动执行 'npm create vite@latest'。" -ForegroundColor Red
+    Write-Host "[ERROR] Project creation failed. Please check network or run 'npm create vite@latest' manually." -ForegroundColor Red
     exit 1
 }
 
-# 进入项目目录
+# Enter project directory
 Set-Location $projectName
 
 # ============================================================
-# 阶段 2：安装额外依赖
+# Phase 2: Install additional dependencies
 # ============================================================
 $extraDeps = @()
-$choices = @("Pinia (状态管理)", "Vue Router (路由)", "Axios (HTTP)", "Vditor (Markdown编辑器)", "KaTeX (数学公式)")
-Write-Host "`n可选的额外依赖（输入数字，多个用逗号分隔，如 1,2）:" -ForegroundColor Yellow
+$choices = @("Pinia (state management)", "Vue Router (routing)", "Axios (HTTP)", "Vditor (Markdown editor)", "KaTeX (math formulas)")
+Write-Host "`nOptional dependencies (enter numbers, comma-separated, e.g., 1,2):" -ForegroundColor Yellow
 for ($i=0; $i -lt $choices.Length; $i++) {
     Write-Host "  $($i+1). $($choices[$i])"
 }
-$selection = Read-Host "请选择（直接回车跳过）"
+$selection = Read-Host "Select (press Enter to skip)"
 if ($selection -ne "") {
     $indices = $selection -split ',' | ForEach-Object { $_.Trim() }
     foreach ($idx in $indices) {
@@ -71,33 +71,33 @@ if ($selection -ne "") {
             "3" { $extraDeps += "axios" }
             "4" { $extraDeps += "vditor" }
             "5" { $extraDeps += "katex" }
-            default { Write-Host "忽略无效选项: $idx" -ForegroundColor Gray }
+            default { Write-Host "Ignoring invalid option: $idx" -ForegroundColor Gray }
         }
     }
 }
 
 if ($extraDeps.Count -gt 0) {
-    Write-Host "正在安装额外依赖：$($extraDeps -join ' ')" -ForegroundColor Cyan
+    Write-Host "Installing additional dependencies: $($extraDeps -join ' ')" -ForegroundColor Cyan
     npm install $extraDeps --save
     if ($LASTEXITCODE -ne 0) {
-        Write-Host "依赖安装失败，请手动执行 npm install。" -ForegroundColor Red
+        Write-Host "[ERROR] Dependency installation failed. Please run 'npm install' manually." -ForegroundColor Red
     }
 }
 
 # ============================================================
-# 阶段 2.5：无条件安装 vite-plugin-singlefile（强制依赖）
+# Phase 2.5: Install vite-plugin-singlefile (mandatory dependency)
 # ============================================================
-Write-Host "正在安装 vite-plugin-singlefile（用于离线单文件打包）..." -ForegroundColor Cyan
+Write-Host "Installing vite-plugin-singlefile (for offline single-file packaging)..." -ForegroundColor Cyan
 npm install vite-plugin-singlefile --save-dev
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "vite-plugin-singlefile 安装失败，请手动执行：npm install vite-plugin-singlefile --save-dev" -ForegroundColor Red
-    # 不退出，允许用户后续手动安装
+    Write-Host "[ERROR] vite-plugin-singlefile installation failed. Please run manually: npm install vite-plugin-singlefile --save-dev" -ForegroundColor Red
+    # Do not exit, allow user to install manually later
 }
 
 # ============================================================
-# 阶段 3：强制修改 vite.config.js（无 BOM）
+# Phase 3: Overwrite vite.config.js (UTF-8 without BOM)
 # ============================================================
-Write-Host "正在设置 vite.config.js（含 vite-plugin-singlefile）..." -ForegroundColor Cyan
+Write-Host "Setting up vite.config.js (with vite-plugin-singlefile)..." -ForegroundColor Cyan
 $viteConfig = @"
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
@@ -106,48 +106,48 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 export default defineConfig({
   plugins: [
     vue(),
-    viteSingleFile(),  // 强制内联所有 JS/CSS，解决 file:// 协议 CORS 问题
+    viteSingleFile(),  // Force inline all JS/CSS to solve file:// protocol CORS issue
   ],
-  base: './',  // 强制相对路径，支持离线运行
+  base: './',  // Force relative paths for offline support
   build: {
     target: 'es2015',
-    assetsInlineLimit: 0,  // 图片等资源保持外部引用
+    assetsInlineLimit: 0,  // Keep images as external files
   }
 })
 "@
 Write-FileUtf8NoBom -Path "vite.config.js" -Content $viteConfig
 
 # ============================================================
-# 阶段 4：若安装了 Vue Router，创建路由文件（从模板复制）
+# Phase 4: Create router file from template (if Vue Router selected)
 # ============================================================
 $routerInstalled = $extraDeps -contains "vue-router@4"
 if ($routerInstalled) {
     $routerDir = "src/router"
     $routerFile = Join-Path $routerDir "index.js"
     
-    # 创建 router 目录（如果不存在）
+    # Create router directory if it doesn't exist
     if (-not (Test-Path $routerDir)) {
         New-Item -ItemType Directory -Path $routerDir -Force | Out-Null
     }
     
-    # 获取技能包根目录（脚本所在目录的上级）
+    # Get skill root directory (parent of the script's parent)
     $skillRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-    # 注意：文件名是 router-index.template.js（template 在前）
+    # Note: filename is router-index.template.js (template first)
     $templatePath = Join-Path $skillRoot "assets/router-index.template.js"
     
     if (Test-Path $templatePath) {
-        Write-Host "正在从模板创建 src/router/index.js（Hash 模式）..." -ForegroundColor Cyan
+        Write-Host "Creating src/router/index.js from template (Hash mode)..." -ForegroundColor Cyan
         $templateContent = Get-Content $templatePath -Raw
         Write-FileUtf8NoBom -Path $routerFile -Content $templateContent
-        Write-Host "路由文件已创建。" -ForegroundColor Green
+        Write-Host "Router file created." -ForegroundColor Green
     } else {
-        Write-Host "警告：未找到模板文件 $templatePath，请手动创建 src/router/index.js。" -ForegroundColor Yellow
-        Write-Host "参考内容：使用 createWebHashHistory() 而非 createWebHistory()" -ForegroundColor Yellow
+        Write-Host "[WARN] Template not found: $templatePath. Please create src/router/index.js manually." -ForegroundColor Yellow
+        Write-Host "Reference: use createWebHashHistory() instead of createWebHistory()" -ForegroundColor Yellow
     }
 }
 
 # ============================================================
-# 阶段 5：更新 .gitignore（无 BOM）
+# Phase 5: Update .gitignore (UTF-8 without BOM)
 # ============================================================
 $gitignore = ".gitignore"
 
@@ -155,14 +155,14 @@ if (Test-Path $gitignore) {
     $content = Get-Content $gitignore
     $needUpdate = $false
     
-    # 使用 Select-String 检查 *.zip（正则匹配，更稳健）
+    # Check *.zip using Select-String (regex matching, more robust)
     $zipRuleFound = $content | Select-String -Pattern '^\s*\*\.zip\s*$' -Quiet
     if (-not $zipRuleFound) {
         Add-Content $gitignore "`n# Ignore release packages`n*.zip"
         $needUpdate = $true
     }
     
-    # 检查三个说明文件
+    # Check the three readme files
     foreach ($file in @("README.txt", "README_zh.txt", "README_en.txt")) {
         $fileRuleFound = $content | Select-String -Pattern "^\s*$([regex]::Escape($file))\s*$" -Quiet
         if (-not $fileRuleFound) {
@@ -172,12 +172,12 @@ if (Test-Path $gitignore) {
     }
     
     if ($needUpdate) {
-        Write-Host "已向 .gitignore 添加忽略规则。" -ForegroundColor Green
+        Write-Host "Added ignore rules to .gitignore." -ForegroundColor Green
     } else {
-        Write-Host ".gitignore 中已包含所有必要规则。" -ForegroundColor Gray
+        Write-Host ".gitignore already contains all required rules." -ForegroundColor Gray
     }
 } else {
-    # 创建完整的 .gitignore（无 BOM）
+    # Create complete .gitignore (UTF-8 without BOM)
     $gitignoreContent = @"
 node_modules
 .DS_Store
@@ -188,16 +188,18 @@ README_zh.txt
 README_en.txt
 "@
     Write-FileUtf8NoBom -Path $gitignore -Content $gitignoreContent
-    Write-Host "已创建 .gitignore 并添加完整规则。" -ForegroundColor Green
+    Write-Host "Created .gitignore with complete rules." -ForegroundColor Green
 }
 
 # ============================================================
-# 完成
+# Phase 6: Completion
 # ============================================================
-Write-Host "`n✅ 项目 '$projectName' 创建完成！" -ForegroundColor Green
-Write-Host "下一步：`n  cd $projectName`n  npm run dev  # 启动开发服务器" -ForegroundColor Cyan
-Write-Host "如需打包发布，请运行 .\scripts\build-and-pack.ps1" -ForegroundColor Cyan
+Write-Host "`n[OK] Project '$projectName' created successfully!" -ForegroundColor Green
+Write-Host "Next steps:" -ForegroundColor Cyan
+Write-Host "  cd $projectName" -ForegroundColor Cyan
+Write-Host "  npm run dev  # Start development server" -ForegroundColor Cyan
+Write-Host "To build for release, run .\scripts\build-and-pack.ps1" -ForegroundColor Cyan
 if ($routerInstalled) {
-    Write-Host "已配置 Vue Router（Hash 模式），请按需添加路由。" -ForegroundColor Green
+    Write-Host "Vue Router (Hash mode) configured. Add your routes as needed." -ForegroundColor Green
 }
-Write-Host "`n说明文件将在首次构建时由 AI 生成，请让 AI 协助完成。" -ForegroundColor Yellow
+Write-Host "`nReadme files will be generated by AI during first build. Please let AI assist." -ForegroundColor Yellow

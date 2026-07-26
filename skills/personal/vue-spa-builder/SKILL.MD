@@ -33,6 +33,20 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ---
 
+## 2.5 脚本编码要求（Windows PowerShell 兼容性）
+
+所有 `.ps1` 脚本文件必须遵守以下规则，以确保在 Windows PowerShell 5（默认）下能正常执行：
+
+| 规则 | 要求 |
+|------|------|
+| **脚本语言** | **必须使用纯英文**：所有注释、`Write-Host` 消息、`Read-Host` 提示必须使用英文，不得包含中文或其他非 ASCII 字符 |
+| **文件编码** | **必须保存为 UTF-8 with BOM**：确保 PowerShell 5 能正确识别编码 |
+| **理由** | PowerShell 5 默认使用 Windows-1252（ANSI）编码解析 `.ps1` 文件，UTF-8 编码的中文字符会被错误解析，导致语法解析失败（如“缺少右括号”等错误） |
+
+> **AI 在创建或修改任何 `.ps1` 文件时，必须使用纯英文内容和 UTF-8 with BOM 编码。**
+
+---
+
 ## 3. 构建说明文件管理（发行包配套）
 
 为了向最终用户说明工具的用途和使用方法，本项目在发行包（`.zip`）中包含说明文件。该文件**存放于项目根目录**，构建时复制到 `dist/` 中一并打包。
@@ -50,16 +64,16 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 当 AI 检测到项目根目录**不存在**任何说明文件时，判定为“首次构建”。AI 必须：
 
 1. **向用户询问**：
-   > “这是第一次构建，请选择说明文件的语言版本：
-   > A. 仅生成 `README.txt`（简体中文，单文件）
-   > B. 生成 `README_zh.txt` + `README_en.txt`（中英双语，双文件）”
+   > "This is the first build. Please select the readme language version:
+   > A. Generate only `README.txt` (Simplified Chinese, single file)
+   > B. Generate `README_zh.txt` + `README_en.txt` (Chinese + English, dual files)"
 
 2. 根据用户选择，在**项目根目录**生成对应的说明文件，内容包含：
    - 项目名称（从 `package.json` 读取）
    - 版本号（用户输入的版本号）
    - 功能简介（根据项目实际功能撰写）
-   - 使用方法：“解压后双击 `index.html` 即可在浏览器中使用”
-   - 环境要求：“建议使用最新版 Chrome/Edge 浏览器”
+   - 使用方法："Extract the zip and double-click `index.html` to use in your browser"
+   - 环境要求："Recommended to use latest Chrome/Edge browser"
 
 3. **注意**：说明文件的内容应随项目实际情况撰写，不得使用空洞的占位文本。
 
@@ -77,7 +91,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ### 3.4 中途更改语言版本
 
-用户可随时向 AI 提出更改语言版本（如“改成双语版”或“只要中文版”），AI 应：
+用户可随时向 AI 提出更改语言版本（如"改成双语版"或"只要中文版"），AI 应：
 - 在根目录创建缺失的文件或删除多余的文件。
 - 告知用户下次构建时将按新配置打包。
 
@@ -134,7 +148,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 ### 6.2 禁止擅自重构 script（不可违反）
 - 如果用户只要求修改 **template** 或 **style**，**绝对不要**同时修改 `<script setup>` 中的业务逻辑、状态管理、API 调用。
 - 如果确实需要调整 script 部分（如新增响应式变量），必须先**向用户说明并征得同意**，且仅修改必要的部分，不进行整体重构。
-- **例外**：用户明确要求“重构脚本”或“优化代码结构”时，才可进行。
+- **例外**：用户明确要求"重构脚本"或"优化代码结构"时，才可进行。
 
 ### 6.3 CSS 设计风格必须确认（强制流程）
 - **在开始任何样式修改之前，AI 必须先向用户确认整体 CSS 设计风格**，包括但不限于：
@@ -144,7 +158,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
   - 圆角大小（统一用 `--radius-sm/md/lg` 等变量）。
   - 阴影层级（卡片悬浮、弹窗等）。
   - 响应式断点（移动端/平板/桌面）。
-- **确认方式**：AI 可提供一套默认的“简洁现代风”方案供用户选择，或让用户详细描述预期风格（可参考现有网站/设计稿）。
+- **确认方式**：AI 可提供一套默认的"简洁现代风"方案供用户选择，或让用户详细描述预期风格（可参考现有网站/设计稿）。
 - **未获得用户确认前，不得编写或提交任何 CSS 代码**（包括 `<style>` 块和全局样式）。
 
 ### 6.4 依赖安装需授权
@@ -154,7 +168,7 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 
 ### 6.5 不确定时必追问
 - 遇到任何不明确的业务逻辑、字段名、交互方式，AI 必须主动提问，不得臆测。
-- 例如：用户说“加个排序”，AI 应追问“按什么字段？升序还是降序？默认排序是什么？”。
+- 例如：用户说"加个排序"，AI 应追问"按什么字段？升序还是降序？默认排序是什么？"。
 
 ### 6.6 修改粒度与整合
 - 对同一文件的**多处修改**（如替换多个颜色值、调整多个样式属性）**必须合并为一次编辑操作**，减少 Token 浪费。
@@ -189,12 +203,12 @@ import { viteSingleFile } from 'vite-plugin-singlefile'
 export default defineConfig({
   plugins: [
     vue(),
-    viteSingleFile(),  // 强制内联所有 JS/CSS
+    viteSingleFile(),  // Force inline all JS/CSS
   ],
   base: './',
   build: {
     target: 'es2015',
-    assetsInlineLimit: 0,  // 图片等资源保持外部引用（图片加载不受 CORS 限制）
+    assetsInlineLimit: 0,  // Keep images as external files (images are not subject to CORS)
   }
 })
 ```
@@ -231,7 +245,7 @@ export default defineConfig({
 - 在 Release 页面提供**两个压缩包**：
   - `项目名-版本号.zip`（即构建后的 `dist/` 打包，用户下载即用）。
   - `Source Code.zip`（项目源代码，方便他人审查或二次开发，**可选**）。
-- Release 说明中建议添加一句提示：“若打开后显示旧版本，请按 Ctrl+F5 强制刷新清除缓存。”
+- Release 说明中建议添加一句提示："If the old version appears after opening, press Ctrl+F5 to force refresh the cache."
 - README.md 中应明确说明该项目为 Vue SPA，并注明使用方法（下载解压后双击 `index.html` 即可）。
 
 ---
@@ -240,41 +254,41 @@ export default defineConfig({
 
 ```
 my-tool/
-├── dist/                     # 构建输出（不提交 Git）
-│   ├── index.html            # 所有 JS/CSS 已内联，可直接双击运行
-│   ├── favicon.svg           # 图片等资源保持外部引用
-│   ├── README.txt            # 构建时从根目录复制
-│   └── README_en.txt         # （如有）
+├── dist/                     # Build output (not committed to Git)
+│   ├── index.html            # All JS/CSS inlined, ready to double-click
+│   ├── favicon.svg           # Images and other resources remain as external files
+│   ├── README.txt            # Copied from root during build
+│   └── README_en.txt         # (optional)
 ├── src/
-│   ├── assets/               # 静态资源（图片、字体等）
-│   ├── components/           # Vue 组件
-│   ├── router/               # 路由配置（必须用 Hash 模式）
-│   ├── stores/               # Pinia 状态（可选）
-│   ├── views/                # 页面级组件
+│   ├── assets/               # Static assets (images, fonts, etc.)
+│   ├── components/           # Vue components
+│   ├── router/               # Router config (must use Hash mode)
+│   ├── stores/               # Pinia stores (optional)
+│   ├── views/                # Page-level components
 │   ├── App.vue
 │   └── main.js
-├── README.txt                # 说明文件（项目根目录，.gitignore 忽略）
-├── README_zh.txt             # （可选）
-├── README_en.txt             # （可选）
+├── README.txt                # Readme file (project root, ignored by .gitignore)
+├── README_zh.txt             # (optional)
+├── README_en.txt             # (optional)
 ├── index.html
 ├── package.json
-├── vite.config.js            # 必须包含 vite-plugin-singlefile
-├── .gitignore                # 应包含 *.zip、README.txt、README_zh.txt、README_en.txt
-└── README.md                 # 面向开发者的项目说明（提交到 Git）
+├── vite.config.js            # Must include vite-plugin-singlefile
+├── .gitignore                # Should include *.zip, README.txt, README_zh.txt, README_en.txt
+└── README.md                 # Developer-facing project description (committed to Git)
 ```
 
 ---
 
 ## 11. 脚本使用示例（AI 指导用户）
 
-**场景 1：用户已有 Vue 项目，只想打包发布**
-> 请你打开 PowerShell，进入项目根目录，运行 `.\scripts\build-and-pack.ps1`，然后根据提示输入版本号（如 v1.0.0），脚本会自动构建并生成压缩包。如果不想生成源代码包，可加 `-SkipSourceZip` 参数。
+**Scenario 1: User has an existing Vue project and wants to build and package**
+> Please open PowerShell, navigate to your project root, and run `.\scripts\build-and-pack.ps1`. Enter the version number (e.g., v1.0.0) when prompted. The script will build and generate the release package. Add `-SkipSourceZip` if you don't want the source code package.
 
-**场景 2：用户想新建一个 Vue 工具项目**
-> 请先运行 `.\scripts\check-node.ps1` 确认 Node 已安装，然后运行 `.\scripts\new-project.ps1`，按提示选择需要的依赖（Vue Router、Pinia 等）。项目创建后，`vite-plugin-singlefile` 会自动安装，我会帮你配置好路由模式和构建参数。
+**Scenario 2: User wants to create a new Vue tool project**
+> First run `.\scripts\check-node.ps1` to confirm Node.js is installed, then run `.\scripts\new-project.ps1` and select the dependencies you need (Vue Router, Pinia, etc.). `vite-plugin-singlefile` will be installed automatically. I'll help you configure the router and build settings.
 
-**场景 3：AI 直接协助开发**
-> AI 会遵循本技能所有铁律，在修改代码时保留注释、不擅自重构 script，并在修改样式前先与你确认设计风格。
+**Scenario 3: AI-assisted development**
+> AI will follow all rules in this skill, preserve comments, avoid refactoring script without permission, and confirm CSS design style before writing any styles.
 
 ---
 
@@ -300,7 +314,8 @@ my-tool/
 | 1.1.0 | 2026-07-21 | 新增说明文件管理机制（README.txt 等），新增建议性功能章节（语言切换） |
 | 1.2.0 | 2026-07-21 | 修复脚本错误处理（Compress-Archive try/catch）；新增 `-SkipSourceZip` 参数；优化 .gitignore 检测；修复 PS 5.1 编码问题；自动创建路由文件模板 |
 | 1.3.0 | 2026-07-22 | **关键修复**：新增 `vite-plugin-singlefile` 强制依赖，解决 `file://` 协议下 CORS 导致的白屏问题；新增专题章节说明；更新配置模板 |
+| 1.4.0 | 2026-07-26 | **Windows PowerShell 兼容性**：所有 `.ps1` 脚本改为纯英文内容 + UTF-8 with BOM 编码，解决 PowerShell 5 中文解析错误问题 |
 
 ---
 
-**AI 必须确认**：每次开始协助前，请确认已阅读并理解本文件全部内容，并在回答中声明“已遵守 vue-spa-builder 技能规则”。
+**AI 必须确认**：每次开始协助前，请确认已阅读并理解本文件全部内容，并在回答中声明"已遵守 vue-spa-builder 技能规则"。
