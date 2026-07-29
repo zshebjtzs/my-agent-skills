@@ -149,10 +149,73 @@ description: Vue 3 + Vite 单页应用（SPA）打包为离线可用的纯静态
 | `new-project.ps1` | 交互式创建新 Vue 3 项目（使用 Vite），让用户选择需要的额外依赖（Pinia、Router、Axios 等），并配置 `.gitignore` 忽略说明文件。**默认自动安装 `vite-plugin-singlefile`**，并询问 GitHub 仓库信息 | 用户从头开始一个新工具时 |
 | `build-and-pack.ps1` | **主脚本**：执行 `npm run build`，将根目录的说明文件复制到 `dist/`，然后使用 `Compress-Archive` 将 `dist/` 打包为根目录同级 `.zip` 文件 | 每次准备发布新版本时 |
 
+### 4.1 脚本执行规范（强制）
+
+> **AI 在执行任何脚本操作时，必须遵守以下规范：**
+
+1. **禁止自动执行**：AI **不得**通过终端工具自动运行 `.ps1` 脚本。
+2. **必须手动执行**：AI **必须**引导用户**手动**在 PowerShell 终端中执行脚本。
+3. **提供绝对路径**：AI **必须**计算并提供脚本的**完整绝对路径**，让用户可以直接复制粘贴。
+
+**标准话术模板（AI 必须使用）**：
+
+> 📌 **请手动执行以下脚本：**
+>
+> 1. 打开 **PowerShell**（Win + R → 输入 `powershell` → 回车）
+> 2. 复制以下命令并粘贴执行：
+>
+> ```powershell
+> & "项目路径\vue-spa-builder\scripts\new-project.ps1"
+> ```
+>
+> 3. 按提示输入项目名称、选择依赖、配置 GitHub 信息。
+> 4. **执行完成后，请告诉我结果，我会继续下一步。**
+
+> ⚠️ **注意**：脚本为交互式，需要手动输入信息。AI 不会自动执行此步骤。
+
 **AI 使用原则**：
-- 若用户已有项目，只需构建打包，直接调用 `build-and-pack.ps1`。
-- 若用户需要新建项目，先调用 `check-node.ps1` 确认环境，再调用 `new-project.ps1`。
-- 所有脚本均设计为**用户手动执行**（双击或在终端运行），AI 可提供命令及参数说明。
+- 若用户已有项目，只需构建打包，AI 提供 `build-and-pack.ps1` 的绝对路径，让用户手动执行。
+- 若用户需要新建项目，AI 提供 `new-project.ps1` 的绝对路径，让用户手动执行。
+- 所有脚本均设计为**用户手动执行**（双击或在终端运行），AI 绝不自动调用。
+
+---
+
+## 11. 脚本使用示例（AI 指导用户）
+
+**Scenario 1: User has an existing Vue project and wants to build and package**
+
+> 📌 **请手动执行构建脚本：**
+>
+> 1. 打开 **PowerShell**（Win + R → 输入 `powershell` → 回车）
+> 2. 复制以下命令并粘贴执行：
+>
+> ```powershell
+> & "E:\你的项目路径\vue-spa-builder\scripts\build-and-pack.ps1"
+> ```
+>
+> 3. 输入版本号（如 `v1.0.0`）按提示完成打包。
+> 4. **执行完成后，请告诉我结果，我会继续下一步。**
+>
+> 如果不希望生成源代码包，可加参数：`-SkipSourceZip`
+
+**Scenario 2: User wants to create a new Vue tool project**
+
+> 📌 **请先检查环境，再手动创建项目：**
+>
+> 1. 打开 **PowerShell**（Win + R → 输入 `powershell` → 回车）
+> 2. 先检查 Node.js 环境（可选）：
+> ```powershell
+> & "E:\你的项目路径\vue-spa-builder\scripts\check-node.ps1"
+> ```
+> 3. 执行创建项目脚本：
+> ```powershell
+> & "E:\你的项目路径\vue-spa-builder\scripts\new-project.ps1"
+> ```
+> 4. 按提示输入项目名称，选择依赖（Pinia、Vue Router 等），配置 GitHub 信息。
+> 5. **执行完成后，请告诉我结果，我会继续下一步。**
+
+**Scenario 3: AI-assisted development**
+> AI 会遵循本技能所有铁律，在修改代码时保留注释、不擅自重构 script，并在修改样式前先与你确认设计风格。
 
 ---
 
