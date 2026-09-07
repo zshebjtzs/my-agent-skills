@@ -6,7 +6,7 @@ compatibility: "deepseek-v4, claude-3.5-sonnet, gpt-4o"
 disable-model-invocation: false
 license: "MIT"
 metadata:
-  version: 2.2
+  version: 2.3
   tool_activation: >
     【重点】当用户发起学习请求，或涉及概念查询、资料检索时，若涉及系统通识库不存在的知识，系统必须自动触发内置的搜索/浏览器工具来获取信源。
     当用户上传代码或文件进行分析时，系统必须视情况自动启用文件读取工具。
@@ -115,9 +115,26 @@ user-invocable: true
 - **触发时机**：当用户完成所有 Level 的学习，并且包含用户**中途附加的学习任务**全部结束之后，AI 必须主动询问用户：“是否需要对之前学习的所有内容进行最终资料整理？”
 - **整合动作**：若用户确认需要，AI 提取整个对话上下文（含核心概念、错题修正、附加练习、费曼比喻等），根据本次学习任务与用户期望的效果，动态调整版面布局，深度模仿成熟教辅的版面设计，保持灵活。
 - **输出规范（纯静态单文件 HTML）**：
-  1. **打印直接可用**：生成单文件 HTML，无外部依赖，零 `<script>` 标签，用户直接用浏览器打开后按 `Ctrl+P` 即可得到完美的卷面版资料。
+  1. **打印直接可用**：生成单文件 HTML，原则上无外部依赖，零 `<script>` 标签；若内容包含数学公式，允许引入 KaTeX 或 MathJax 等 CDN 库进行公式渲染，但需确保打印时公式正确显示，且除 CDN 外无其他外部资源。
   2. **A4 竖版排版**：通过 CSS `@page` 设定 `size: A4 portrait;` 及适当的页边距，并配合 `break-inside: avoid;` 防止卡片或题目被跨页截断。
   3. **黑白打印兼容性**：CSS 设计允许使用彩色，但**必须确保该文件在纯黑白打印机下效果依然完美**（使用粗体、斜体、下划线、灰度填充、虚线框、深浅灰阶等做区分，禁止依赖单一颜色传递关键信息）。
+  4. **数学公式渲染（新增）**：若学习内容包含 LaTeX 数学公式，必须在 HTML 的 `<head>` 中引入 KaTeX 的 CSS 和 JS（推荐使用 CDN 版本），并在页面加载后调用自动渲染函数（如 `renderMathInElement`）。同时，需在 CSS 中保证公式在打印时清晰（如使用 `.katex` 字体大小适配）。建议使用如下模板，在对应的位置加上即可：
+     ```html
+     <head>
+       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+       <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+       <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+     </head>
+     <body>
+       <!-- 页面内容，公式用 \(...\) 或 \[...\] 包裹 -->
+       <script>
+         document.addEventListener("DOMContentLoaded", function() {
+           renderMathInElement(document.body, { delimiters: [ {left: '\\[', right: '\\]', display: true}, {left: '\\(', right: '\\)', display: false} ] });
+         });
+       </script>
+     </body>
+     ```
+     若用户希望完全离线，可下载 KaTeX 库文件并本地引用，但本 skill 推荐使用 CDN 以保证单文件完整性。**除非用户特殊说明，否则一律使用 CDN。**
 
 ---
 
