@@ -1,3 +1,3 @@
-[submodule "community/spec-kit"]
-	path = community/spec-kit
+[submodule "skills/community/spec-kit"]
+	path = skills/community/spec-kit
 	url = https://github.com/github/spec-kit.git
