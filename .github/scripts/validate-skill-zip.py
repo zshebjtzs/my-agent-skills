@@ -108,12 +108,16 @@ def read_zip(archive_path):
             mode = (info.external_attr >> 16) & 0xFFFF
             file_type = stat.S_IFMT(mode)
 
-            if info.is_dir():
-                continue
             if file_type == stat.S_IFLNK:
                 raise ValidationError("ZIP 中包含符号链接，已拒绝。")
-            if file_type not in (0, stat.S_IFREG):
+            if file_type not in (0, stat.S_IFREG, stat.S_IFDIR):
                 raise ValidationError("ZIP 中包含特殊文件类型，已拒绝。")
+            if info.is_dir():
+                if file_type not in (0, stat.S_IFDIR):
+                    raise ValidationError("ZIP 目录条目的文件类型信息异常。")
+                continue
+            if file_type == stat.S_IFDIR:
+                raise ValidationError("ZIP 中存在缺少目录标记的特殊目录条目。")
             if info.flag_bits & 0x1:
                 raise ValidationError("不支持加密 ZIP，请上传未加密的压缩包。")
             if "__MACOSX/" in path or path.endswith("/.DS_Store") or path == ".DS_Store":
