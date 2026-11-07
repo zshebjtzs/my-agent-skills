@@ -2,7 +2,9 @@
 
 A version-controlled library of reusable agent Skills, paired with a searchable, bilingual documentation portal.
 
-[**Browse the Skill Portal**](https://zshebjtzs.github.io/my-agent-skills/) · [简体中文](https://zshebjtzs.github.io/my-agent-skills/) · [English](https://zshebjtzs.github.io/my-agent-skills/en/) · [**Source Repository**](https://github.com/zshebjtzs/my-agent-skills)
+[**简体中文 README**](README.zh-CN.md) · **English README**
+
+[**Browse the Skill Portal**](https://zshebjtzs.github.io/my-agent-skills/) · [简体中文门户](https://zshebjtzs.github.io/my-agent-skills/) · [English Portal](https://zshebjtzs.github.io/my-agent-skills/en/) · [**Source Repository**](https://github.com/zshebjtzs/my-agent-skills)
 
 My Agent Skills brings locally maintained, community-sourced, and externally hosted Skills into one organized collection. Each Skill remains a self-contained directory, while the portal provides category browsing, full-text search, source links, previews, and downloadable ZIP archives.
 
