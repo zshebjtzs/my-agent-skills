@@ -309,18 +309,18 @@ const englishCategoryDescriptions = {
   shared: 'Reusable Skills shared across projects and agents.'
 };
 const englishLatest = items.slice(0, 8).map(item =>
-  `- [**${item.name}**](/en/skills/${item.category}/${item.id}) — ${item.description.replace(/\\s+/g, ' ').slice(0, 150)}`
-).join('\\n') || '_No Skills discovered yet._';
+  `- [**${item.name}**](/en/skills/${item.category}/${item.id}) — ${item.description.replace(/\s+/g, ' ').slice(0, 150)}`
+).join('\n') || '_No Skills discovered yet._';
 
 for (const category of CATEGORIES) {
   const categoryItems = items.filter(item => item.category === category);
   const categoryDir = join(SITE, 'en', 'skills', category);
   await mkdir(categoryDir, { recursive: true });
   const links = categoryItems.length
-    ? categoryItems.map(item => `- [**${item.name}**](./${item.id}) — ${item.description.replace(/\\s+/g, ' ').slice(0, 180)}`).join('\\n')
+    ? categoryItems.map(item => `- [**${item.name}**](./${item.id}) — ${item.description.replace(/\s+/g, ' ').slice(0, 180)}`).join('\n')
     : '_No Skills in this category yet._';
   await writeFile(join(categoryDir, 'index.md'),
-    `# ${englishCategoryNames[category]} Skills\\n\\n${englishCategoryDescriptions[category]}\\n\\n${links}\\n`);
+    `# ${englishCategoryNames[category]} Skills\n\n${englishCategoryDescriptions[category]}\n\n${links}\n`);
   for (const item of categoryItems) {
     const englishDetail = detailPage(item)
       .replace('Download entire Skill (.zip)', 'Download Skill ZIP')
@@ -358,7 +358,7 @@ features:
 ${englishFeatures.map(feature => `  - title: ${feature.title}
     details: ${JSON.stringify(feature.details)}
     link: ${feature.link}
-    linkText: ${JSON.stringify(feature.linkText)}`).join('\\n')}
+    linkText: ${JSON.stringify(feature.linkText)}`).join('\n')}
 ---
 
 ## Recently added
