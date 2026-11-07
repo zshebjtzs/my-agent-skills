@@ -1,7 +1,7 @@
 name: Add a local Skill
 description: Submit the contents of a Skill and let GitHub Actions create its directory and pull request.
 title: "[Local Skill] "
-labels: ["skill-submission", "local-skill"]
+labels: ["skill-submission"]
 body:
   - type: markdown
     attributes:
