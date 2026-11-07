@@ -8,7 +8,11 @@ body:
       value: |
         Submit a local Skill without editing the repository directly. The automation creates a pull request; the Skill appears on the portal after review and merge.
 
-        **Required:** paste the complete SKILL.md between the BEGIN/END markers below. Keep the marker lines unchanged.
+        Choose one submission method:
+        - **Simple Skill:** paste SKILL.md and optional extra text files as JSON.
+        - **Complex Skill:** upload one ZIP containing the complete Skill directory. The ZIP must contain exactly one SKILL.md at its root or inside one top-level project folder.
+
+        Do not fill in both methods. ZIP submissions accept UTF-8 text files only; binary assets are not supported yet.
   - type: input
     id: skill-name
     attributes:
@@ -27,6 +31,14 @@ body:
         - shared
     validations:
       required: true
+  - type: upload
+    id: skill-zip
+    attributes:
+      label: Skill ZIP archive
+      description: For a multi-file Skill, upload one .zip containing SKILL.md and its supporting folders. Leave this empty when using the JSON fields below.
+    validations:
+      required: false
+      accept: ".zip"
   - type: textarea
     id: skill-md
     attributes:
@@ -38,7 +50,7 @@ body:
         [[END SKILL.md]]
       render: markdown
     validations:
-      required: true
+      required: false
   - type: textarea
     id: readme-md
     attributes:
