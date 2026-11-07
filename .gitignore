@@ -1,1 +1,15 @@
+# Existing generated Skill archive
 skills/personal/vue-spa-builder.zip
+
+# Node / VitePress
+node_modules/
+site/.vitepress/cache/
+site/.vitepress/dist/
+site/index.md
+site/skills/
+site/public/downloads/
+
+# Local environment
+.env
+.env.*
+!.env.example

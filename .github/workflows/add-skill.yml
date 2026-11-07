@@ -1,0 +1,127 @@
+name: Add external Skill
+
+on:
+  issues:
+    types: [opened, labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  create-skill-pr:
+    if: contains(github.event.issue.labels.*.name, 'skill-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create a catalog pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const field = (label) => {
+              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const match = body.match(new RegExp('### ' + escaped + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)', 'i'));
+              const value = match?.[1]?.trim();
+              return value && value !== '_No response_' ? value : '';
+            };
+
+            const name = field('Skill name');
+            const category = field('Category').toLowerCase();
+            const repositoryUrl = field('GitHub repository').replace(/\\/$/, '');
+            const skillPath = field('Skill directory path').replace(/^\\/+|\\/+$/g, '');
+            const requestedRef = field('Branch, tag, or commit');
+            const match = repositoryUrl.match(/^https:\\/\\/github\\.com\\/([A-Za-z0-9_.-]+)\\/([A-Za-z0-9_.-]+)$/);
+
+            const fail = async (message) => {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Skill submission could not be automated: ' + message
+              });
+            };
+
+            if (!name || !['personal', 'community', 'shared'].includes(category) || !match || !skillPath ||
+                skillPath.split('/').some(part => part === '.' || part === '..') ||
+                !/^[A-Za-z0-9_./-]+$/.test(skillPath)) {
+              await fail('please check the Skill name, category, public GitHub repository URL, and repository-relative Skill directory path.');
+              return;
+            }
+
+            const repository = match[1] + '/' + match[2].replace(/\\.git$/i, '');
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            const id = category + '-' + slug;
+            const branch = 'add-skill/issue-' + issue.number;
+
+            const { data: repoData } = await github.rest.repos.get({ owner: context.repo.owner, repo: context.repo.repo });
+            const base = repoData.default_branch;
+            const { data: refData } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/' + base });
+            const { data: catalogFile } = await github.rest.repos.getContent({
+              ...context.repo, path: 'catalog/external-skills.json', ref: base
+            });
+            const catalog = JSON.parse(Buffer.from(catalogFile.content, 'base64').toString('utf8'));
+
+            if (catalog.some(item => item.id === id)) {
+              await fail('a Skill with this catalog ID already exists: ' + id);
+              return;
+            }
+
+            const { data: sourceRepo } = await github.rest.repos.get({ owner: match[1], repo: match[2].replace(/\\.git$/i, '') });
+            if (sourceRepo.private || sourceRepo.archived) {
+              await fail('the source repository must be public and not archived.');
+              return;
+            }
+
+            const newEntry = {
+              id,
+              name,
+              category,
+              tags: [],
+              source: {
+                type: 'external',
+                repository,
+                ref: requestedRef || sourceRepo.default_branch,
+                path: skillPath
+              }
+            };
+
+            await github.rest.git.createRef({
+              ...context.repo,
+              ref: 'refs/heads/' + branch,
+              sha: refData.object.sha
+            });
+
+            catalog.push(newEntry);
+            const content = Buffer.from(JSON.stringify(catalog, null, 2) + '\\n').toString('base64');
+            await github.rest.repos.createOrUpdateFileContents({
+              ...context.repo,
+              path: 'catalog/external-skills.json',
+              message: 'catalog: add ' + name,
+              content,
+              sha: catalogFile.sha,
+              branch
+            });
+
+            const { data: pr } = await github.rest.pulls.create({
+              ...context.repo,
+              title: 'catalog: add ' + name,
+              head: branch,
+              base,
+              body: [
+                '## Summary',
+                '- Add external Skill **' + name + '** to the catalog.',
+                '- Source: ' + repository + ' / ' + skillPath,
+                '- Category: ' + category,
+                '',
+                'The Pages build validates the source directory and generates its preview and ZIP download.',
+                '',
+                'Closes #' + issue.number
+              ].join('\\n')
+            });
+
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issue.number,
+              body: 'Created pull request: ' + pr.html_url
+            });

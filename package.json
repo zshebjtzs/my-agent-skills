@@ -1,0 +1,17 @@
+{
+  "name": "my-agent-skills",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/build-site.mjs && vitepress dev site",
+    "build": "npm run validate && node scripts/build-site.mjs && vitepress build site",
+    "preview": "vitepress preview site",
+    "validate": "node scripts/validate-catalog.mjs"
+  },
+  "devDependencies": {
+    "fflate": "^0.8.2",
+    "gray-matter": "^4.0.3",
+    "vitepress": "^1.6.4"
+  }
+}
