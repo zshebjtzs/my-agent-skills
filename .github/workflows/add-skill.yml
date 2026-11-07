@@ -164,9 +164,14 @@ jobs:
               return value && value !== '_No response_' ? value : '';
             };
             const marked = (name) => {
-              const escaped = name.replace(/[.*+?^$\\{\\}()|[\\]\\\\]/g, '\\\\$&');
-              const match = body.match(new RegExp('<!-- BEGIN ' + escaped + ' -->([\\s\\S]*?)<!-- END ' + escaped + ' -->'));
-              return match?.[1]?.replace(/^\\s*\\n|\\n\\s*$/g, '') ?? '';
+              const start = '<!-- BEGIN ' + name + ' -->';
+              const end = '<!-- END ' + name + ' -->';
+              const startAt = body.indexOf(start);
+              if (startAt < 0) return '';
+              const contentStart = startAt + start.length;
+              const endAt = body.indexOf(end, contentStart);
+              if (endAt < 0) return '';
+              return body.slice(contentStart, endAt).replace(/^\\s*\\n|\\n\\s*$/g, '');
             };
             const fail = async (message) => {
               await github.rest.issues.createComment({
