@@ -10,7 +10,6 @@ import tempfile
 import urllib.parse
 import urllib.request
 import zipfile
-from pathlib import PurePosixPath
 
 MAX_ARCHIVE_BYTES = 10 * 1024 * 1024
 MAX_TOTAL_BYTES = 10 * 1024 * 1024
@@ -97,25 +96,26 @@ def read_zip(archive_path):
     files = {}
     folded_paths = set()
     declared_total = 0
+    actual_total = 0
+
     with zipfile.ZipFile(archive_path, "r") as archive:
         members = archive.infolist()
         if not members:
             raise ValidationError("ZIP 压缩包为空。")
 
         for info in members:
-            raw_name = info.filename
-            path = safe_member_path(raw_name)
+            path = safe_member_path(info.filename)
             mode = (info.external_attr >> 16) & 0xFFFF
+            file_type = stat.S_IFMT(mode)
 
             if info.is_dir():
                 continue
-            if stat.S_ISLNK(mode):
+            if file_type == stat.S_IFLNK:
                 raise ValidationError("ZIP 中包含符号链接，已拒绝。")
-            if mode and not (stat.S_ISREG(mode) or stat.S_ISLNK(mode)):
+            if file_type not in (0, stat.S_IFREG):
                 raise ValidationError("ZIP 中包含特殊文件类型，已拒绝。")
             if info.flag_bits & 0x1:
                 raise ValidationError("不支持加密 ZIP，请上传未加密的压缩包。")
-
             if "__MACOSX/" in path or path.endswith("/.DS_Store") or path == ".DS_Store":
                 continue
 
@@ -140,7 +140,8 @@ def read_zip(archive_path):
                     if not chunk:
                         break
                     actual_size += len(chunk)
-                    if actual_size > MAX_FILE_BYTES or sum(map(len, chunks)) + actual_size > MAX_TOTAL_BYTES:
+                    actual_total += len(chunk)
+                    if actual_size > MAX_FILE_BYTES or actual_total > MAX_TOTAL_BYTES:
                         raise ValidationError("解压后的文件内容超过大小限制：" + path)
                     chunks.append(chunk)
             if actual_size != info.file_size:
