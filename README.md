@@ -125,7 +125,7 @@ A Skill may depend on a particular agent runtime, command-line tool, environment
 
 Contributions are submitted through GitHub Issues. GitHub Actions validates the submission, creates a branch, commits the proposed files, opens a pull request, and posts the PR link back to the Issue.
 
-**Submissions are not published immediately.** A maintainer reviews the pull request and merges it manually. The portal is updated after the change reaches `main) and the Pages workflow completes successfully.
+**Submissions are not published immediately.** A maintainer reviews the pull request and merges it manually. The portal is updated after the change reaches `main` and the Pages workflow completes successfully.
 
 ### 1. Submit a Local Skill
 
