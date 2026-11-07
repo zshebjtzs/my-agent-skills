@@ -55,7 +55,9 @@ body:
     id: extra-files
     attributes:
       label: Additional files JSON
-      description: Optional JSON object mapping relative paths to text contents. Example: {"scripts/check.py":"print('ok')","references/notes.md":"# Notes"}
+      description: >-
+        Optional JSON object mapping relative paths to text contents. Example:
+        {"scripts/check.py":"print('ok')","references/notes.md":"# Notes"}
       value: |
         [[BEGIN Additional files JSON]]
 
