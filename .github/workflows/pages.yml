@@ -24,6 +24,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Validate Skill ZIP validator syntax
+        run: python3 -m py_compile .github/scripts/validate-skill-zip.py
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
