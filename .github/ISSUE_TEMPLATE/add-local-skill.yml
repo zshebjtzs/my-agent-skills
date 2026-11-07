@@ -1,0 +1,65 @@
+name: Add a local Skill
+description: Submit the contents of a Skill and let GitHub Actions create its directory and pull request.
+title: "[Local Skill] "
+labels: ["skill-submission", "local-skill"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit a local Skill without editing the repository directly. The automation creates a pull request; the Skill appears on the portal after review and merge.
+
+        **Required:** paste the complete SKILL.md between the BEGIN/END markers below. Keep the marker lines unchanged.
+  - type: input
+    id: skill_name
+    attributes:
+      label: Skill name
+      description: Display name; the directory slug is generated automatically.
+      placeholder: My New Skill
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - personal
+        - community
+        - shared
+    validations:
+      required: true
+  - type: textarea
+    id: skill_md
+    attributes:
+      label: SKILL.md content
+      description: Paste the entire file between the markers. Markdown headings and code fences are supported.
+      value: |
+        [[BEGIN SKILL.md]]
+
+        [[END SKILL.md]]
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: readme_md
+    attributes:
+      label: README.md content
+      description: Optional visitor-facing introduction. Leave the markers empty to omit README.md.
+      value: |
+        [[BEGIN README.md]]
+
+        [[END README.md]]
+      render: markdown
+    validations:
+      required: false
+  - type: textarea
+    id: extra_files
+    attributes:
+      label: Additional files JSON
+      description: Optional JSON object mapping relative paths to text contents. Example: {"scripts/check.py":"print('ok')","references/notes.md":"# Notes"}
+      value: |
+        [[BEGIN Additional files JSON]]
+
+        [[END Additional files JSON]]
+      render: markdown
+    validations:
+      required: false

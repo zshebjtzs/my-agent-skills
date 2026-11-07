@@ -147,3 +147,162 @@ jobs:
               issue_number: issue.number,
               body: 'Created pull request: ' + pr.html_url
             });
+
+  create-local-skill-pr:
+    if: startsWith(github.event.issue.title, '[Local Skill]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create a Skill directory pull request
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            const field = (label) => {
+              const match = body.match(new RegExp('### ' + label + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)', 'i'));
+              const value = match?.[1]?.trim();
+              return value && value !== '_No response_' ? value : '';
+            };
+            const marked = (name) => {
+              const start = '[[BEGIN ' + name + ']]';
+              const end = '[[END ' + name + ']]';
+              const startAt = body.indexOf(start);
+              if (startAt < 0) return '';
+              const contentStart = startAt + start.length;
+              const endAt = body.indexOf(end, contentStart);
+              if (endAt < 0) return '';
+              return body.slice(contentStart, endAt).replace(/^\n+|\n+$/g, '');
+            };
+            const fail = async (message) => {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Local Skill submission could not be automated: ' + message
+              });
+            };
+
+            const name = field('Skill name');
+            const category = field('Category').toLowerCase();
+            const skillContent = marked('SKILL.md');
+            const readmeContent = marked('README.md');
+            const extraFilesRaw = marked('Additional files JSON');
+            if (!name || !['personal', 'community', 'shared'].includes(category) || !skillContent.trim()) {
+              await fail('please provide a Skill name, a valid category, and the complete SKILL.md content between the supplied markers.');
+              return;
+            }
+
+            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            if (!slug) {
+              await fail('the Skill name must contain at least one English letter or number so it can form a directory name.');
+              return;
+            }
+            const directory = 'skills/' + category + '/' + slug;
+            const files = new Map([['SKILL.md', skillContent]]);
+            if (readmeContent.trim()) files.set('README.md', readmeContent);
+
+            if (extraFilesRaw.trim()) {
+              let extraFiles;
+              try { extraFiles = JSON.parse(extraFilesRaw); }
+              catch {
+                await fail('Additional files JSON is not valid JSON. Use an object mapping relative file paths to their text contents.');
+                return;
+              }
+              if (!extraFiles || Array.isArray(extraFiles) || typeof extraFiles !== 'object') {
+                await fail('Additional files JSON must be an object mapping file paths to text contents.');
+                return;
+              }
+              for (const [path, content] of Object.entries(extraFiles)) {
+                if (typeof content !== 'string' || !path || path.startsWith('/') ||
+                    path.includes(String.fromCharCode(92)) || path.split('/').some(part => !part || part === '.' || part === '..' || part === '.git') ||
+                    !/^[A-Za-z0-9_.@+-]+(?:\/[A-Za-z0-9_.@+-]+)*$/.test(path)) {
+                  await fail('invalid additional file path or content: ' + path);
+                  return;
+                }
+                if (files.has(path)) {
+                  await fail('duplicate file path: ' + path);
+                  return;
+                }
+                files.set(path, content);
+              }
+            }
+
+            const totalBytes = [...files.values()].reduce((sum, value) => sum + Buffer.byteLength(value, 'utf8'), 0);
+            if (files.size > 30 || totalBytes > 45000) {
+              await fail('this Issue supports at most 30 files and 45 KB of text. For larger Skills, use a source repository and the external Skill submission form.');
+              return;
+            }
+
+            const branch = 'add-local-skill/issue-' + issue.number;
+            const { data: existing } = await github.rest.pulls.list({
+              ...context.repo, state: 'all', head: context.repo.owner + ':' + branch
+            });
+            if (existing.length) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: 'A pull request already exists for this submission: ' + existing[0].html_url
+              });
+              return;
+            }
+
+            const { data: repoData } = await github.rest.repos.get({ ...context.repo });
+            const base = repoData.default_branch;
+            const { data: refData } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/' + base });
+            const { data: commitData } = await github.rest.git.getCommit({
+              ...context.repo, commit_sha: refData.object.sha
+            });
+            const { data: existingPath } = await github.rest.repos.getContent({
+              ...context.repo, path: directory, ref: base
+            }).catch(error => {
+              if (error.status === 404) return { data: null };
+              throw error;
+            });
+            if (existingPath) {
+              await fail('a Skill directory already exists at ' + directory + '. Choose a different Skill name or update the existing Skill manually.');
+              return;
+            }
+
+            const entries = [...files.entries()].map(([path, content]) => ({
+              path: directory + '/' + path,
+              mode: '100644',
+              type: 'blob',
+              content
+            }));
+            const { data: tree } = await github.rest.git.createTree({
+              ...context.repo,
+              base_tree: commitData.tree.sha,
+              tree: entries
+            });
+            const { data: commit } = await github.rest.git.createCommit({
+              ...context.repo,
+              message: 'skills: add ' + name,
+              tree: tree.sha,
+              parents: [refData.object.sha]
+            });
+            await github.rest.git.createRef({
+              ...context.repo,
+              ref: 'refs/heads/' + branch,
+              sha: commit.sha
+            });
+
+            const { data: pr } = await github.rest.pulls.create({
+              ...context.repo,
+              title: 'skills: add ' + name,
+              head: branch,
+              base,
+              body: [
+                '## Summary',
+                '- Add local Skill **' + name + '**.',
+                '- Directory: `' + directory + '`',
+                '- Category: ' + category,
+                '- Files: ' + [...files.keys()].map(path => '`' + path + '`').join(', '),
+                '',
+                'The Pages build discovers the new Skill automatically and generates its preview and ZIP download.',
+                '',
+                'Closes #' + issue.number
+              ].join('\\n')
+            });
+            await github.rest.issues.createComment({
+              ...context.repo,
+              issue_number: issue.number,
+              body: 'Created pull request: ' + pr.html_url
+            });
