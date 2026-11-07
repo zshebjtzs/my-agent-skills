@@ -10,7 +10,7 @@ body:
 
         **Required:** paste the complete SKILL.md between the BEGIN/END markers below. Keep the marker lines unchanged.
   - type: input
-    id: skill_name
+    id: skill-name
     attributes:
       label: Skill name
       description: Display name; the directory slug is generated automatically.
@@ -28,7 +28,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: skill_md
+    id: skill-md
     attributes:
       label: SKILL.md content
       description: Paste the entire file between the markers. Markdown headings and code fences are supported.
@@ -40,7 +40,7 @@ body:
     validations:
       required: true
   - type: textarea
-    id: readme_md
+    id: readme-md
     attributes:
       label: README.md content
       description: Optional visitor-facing introduction. Leave the markers empty to omit README.md.
@@ -52,7 +52,7 @@ body:
     validations:
       required: false
   - type: textarea
-    id: extra_files
+    id: extra-files
     attributes:
       label: Additional files JSON
       description: Optional JSON object mapping relative paths to text contents. Example: {"scripts/check.py":"print('ok')","references/notes.md":"# Notes"}
