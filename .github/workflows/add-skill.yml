@@ -171,7 +171,7 @@ jobs:
               const contentStart = startAt + start.length;
               const endAt = body.indexOf(end, contentStart);
               if (endAt < 0) return '';
-              return body.slice(contentStart, endAt).replace(/^\\s*\\n|\\n\\s*$/g, '');
+              return body.slice(contentStart, endAt).replace(/^\n+|\n+$/g, '');
             };
             const fail = async (message) => {
               await github.rest.issues.createComment({
