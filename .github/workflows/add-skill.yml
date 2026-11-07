@@ -1,4 +1,4 @@
-name: Add external Skill
+name: Add Skill submissions
 
 on:
   issues:
@@ -10,7 +10,7 @@ permissions:
   issues: write
 
 jobs:
-  create-skill-pr:
+  create-external-skill-pr:
     if: startsWith(github.event.issue.title, '[Skill]')
     runs-on: ubuntu-latest
     steps:
@@ -25,7 +25,6 @@ jobs:
               const value = match?.[1]?.trim();
               return value && value !== '_No response_' ? value : '';
             };
-
             const fail = async (message) => {
               await github.rest.issues.createComment({
                 ...context.repo,
@@ -56,17 +55,16 @@ jobs:
               return;
             }
 
-            const repository = owner + '/' + sourceRepoName;
             const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
             if (!slug) {
               await fail('the Skill name must contain at least one English letter or number so it can form a catalog ID.');
               return;
             }
             const id = category + '-' + slug;
-            const branch = 'add-skill/issue-' + issue.number;
+            const branchName = 'add-skill/issue-' + issue.number;
 
             const { data: existing } = await github.rest.pulls.list({
-              ...context.repo, state: 'all', head: context.repo.owner + ':' + branch
+              ...context.repo, state: 'all', head: context.repo.owner + ':' + branchName
             });
             if (existing.length) {
               await github.rest.issues.createComment({
@@ -102,7 +100,7 @@ jobs:
               tags: [],
               source: {
                 type: 'external',
-                repository,
+                repository: owner + '/' + sourceRepoName,
                 ref: requestedRef || sourceRepoData.default_branch,
                 path: skillPath
               }
@@ -110,7 +108,7 @@ jobs:
 
             await github.rest.git.createRef({
               ...context.repo,
-              ref: 'refs/heads/' + branch,
+              ref: 'refs/heads/' + branchName,
               sha: refData.object.sha
             });
 
@@ -122,21 +120,23 @@ jobs:
               message: 'catalog: add ' + name,
               content,
               sha: catalogFile.sha,
-              branch
+              branch: branchName
             });
 
             const { data: pr } = await github.rest.pulls.create({
               ...context.repo,
               title: 'catalog: add ' + name,
-              head: branch,
+              head: branchName,
               base,
               body: [
                 '## Summary',
                 '- Add external Skill **' + name + '** to the catalog.',
-                '- Source: ' + repository + ' / ' + skillPath,
+                '- Source: ' + owner + '/' + sourceRepoName + ' / ' + skillPath,
                 '- Category: ' + category,
                 '',
                 'The Pages build validates the source directory and generates its preview and ZIP download.',
+                '',
+                'Please review this contribution before merging.',
                 '',
                 'Closes #' + issue.number
               ].join('\n')
@@ -152,12 +152,22 @@ jobs:
     if: startsWith(github.event.issue.title, '[Local Skill]')
     runs-on: ubuntu-latest
     steps:
-      - name: Create a Skill directory pull request
+      - name: Checkout trusted repository scripts
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate submission and create review pull request
         uses: actions/github-script@v7
         with:
           script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { execFileSync } = require('node:child_process');
             const issue = context.payload.issue;
             const body = issue.body || '';
+
             const field = (label) => {
               const match = body.match(new RegExp('### ' + label + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)', 'i'));
               const value = match?.[1]?.trim();
@@ -177,132 +187,248 @@ jobs:
               await github.rest.issues.createComment({
                 ...context.repo,
                 issue_number: issue.number,
-                body: 'Local Skill submission could not be automated: ' + message
+                body: 'Local Skill submission could not be automated:\n\n' + message
               });
+              core.setFailed(message);
             };
 
-            const name = field('Skill name');
-            const category = field('Category').toLowerCase();
-            const skillContent = marked('SKILL.md');
-            const readmeContent = marked('README.md');
-            const extraFilesRaw = marked('Additional files JSON');
-            if (!name || !['personal', 'community', 'shared'].includes(category) || !skillContent.trim()) {
-              await fail('please provide a Skill name, a valid category, and the complete SKILL.md content between the supplied markers.');
-              return;
-            }
+            try {
+              const name = field('Skill name');
+              const category = field('Category').toLowerCase();
+              const skillContent = marked('SKILL.md');
+              const readmeContent = marked('README.md');
+              const extraFilesRaw = marked('Additional files JSON');
+              const attachmentUrls = [...body.matchAll(/https:\/\/github\.com\/user-attachments\/files\/[^\s)>"]+/g)]
+                .map(match => match[0].replace(/[.,;]+$/, ''));
+              const uniqueAttachmentUrls = [...new Set(attachmentUrls)];
 
-            const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-            if (!slug) {
-              await fail('the Skill name must contain at least one English letter or number so it can form a directory name.');
-              return;
-            }
-            const directory = 'skills/' + category + '/' + slug;
-            const files = new Map([['SKILL.md', skillContent]]);
-            if (readmeContent.trim()) files.set('README.md', readmeContent);
-
-            if (extraFilesRaw.trim()) {
-              let extraFiles;
-              try { extraFiles = JSON.parse(extraFilesRaw); }
-              catch {
-                await fail('Additional files JSON is not valid JSON. Use an object mapping relative file paths to their text contents.');
+              if (!name || name.length > 80 || !['personal', 'community', 'shared'].includes(category)) {
+                await fail('please provide a Skill name (at most 80 characters) and a valid category.');
                 return;
               }
-              if (!extraFiles || Array.isArray(extraFiles) || typeof extraFiles !== 'object') {
-                await fail('Additional files JSON must be an object mapping file paths to text contents.');
+
+              let files = new Map();
+              let submissionMode = 'JSON';
+
+              if (uniqueAttachmentUrls.length > 1) {
+                await fail('please upload exactly one ZIP archive.');
                 return;
               }
-              for (const [path, content] of Object.entries(extraFiles)) {
-                if (typeof content !== 'string' || !path || path.startsWith('/') ||
-                    path.includes(String.fromCharCode(92)) || path.split('/').some(part => !part || part === '.' || part === '..' || part === '.git') ||
-                    !/^[A-Za-z0-9_.@+-]+(?:\/[A-Za-z0-9_.@+-]+)*$/.test(path)) {
-                  await fail('invalid additional file path or content: ' + path);
+
+              if (uniqueAttachmentUrls.length === 1) {
+                const zipUrl = new URL(uniqueAttachmentUrls[0]);
+                if (zipUrl.protocol !== 'https:' || zipUrl.hostname !== 'github.com' ||
+                    !zipUrl.pathname.startsWith('/user-attachments/files/') ||
+                    !zipUrl.pathname.toLowerCase().endsWith('.zip')) {
+                  await fail('the uploaded file must be a GitHub Issue attachment ending in .zip.');
                   return;
                 }
-                if (files.has(path)) {
-                  await fail('duplicate file path: ' + path);
+                if (skillContent.trim() || readmeContent.trim() || extraFilesRaw.trim()) {
+                  await fail('do not mix ZIP upload with the JSON text fields. Choose one submission method.');
                   return;
                 }
-                files.set(path, content);
+
+                submissionMode = 'ZIP';
+                const manifestPath = path.join(process.env.RUNNER_TEMP, 'skill-manifest.json');
+                try {
+                  execFileSync('python3', [
+                    '.github/scripts/validate-skill-zip.py',
+                    uniqueAttachmentUrls[0],
+                    manifestPath
+                  ], {
+                    encoding: 'utf8',
+                    timeout: 120000,
+                    maxBuffer: 2 * 1024 * 1024
+                  });
+                } catch (error) {
+                  const details = String(error.stderr || error.message || '')
+                    .split('\n')
+                    .find(line => line.includes('Validation error:')) || 'ZIP validation failed. Please inspect the archive and try again.';
+                  await fail(details.replace(/^.*Validation error:\s*/, '').slice(0, 500));
+                  return;
+                }
+
+                const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+                for (const item of manifest.files || []) {
+                  files.set(item.path, item.content);
+                }
+              } else {
+                if (!skillContent.trim()) {
+                  await fail('provide SKILL.md and optional text files as JSON, or upload one ZIP archive.');
+                  return;
+                }
+                files.set('SKILL.md', skillContent);
+                if (readmeContent.trim()) files.set('README.md', readmeContent);
+
+                if (extraFilesRaw.trim()) {
+                  let extraFiles;
+                  try {
+                    extraFiles = JSON.parse(extraFilesRaw);
+                  } catch {
+                    await fail('Additional files JSON is invalid. Use an object mapping relative paths to text contents.');
+                    return;
+                  }
+                  if (!extraFiles || Array.isArray(extraFiles) || typeof extraFiles !== 'object') {
+                    await fail('Additional files JSON must be an object mapping relative paths to text contents.');
+                    return;
+                  }
+                  for (const [filePath, content] of Object.entries(extraFiles)) {
+                    if (typeof content !== 'string' || !filePath || filePath.startsWith('/') ||
+                        filePath.includes(String.fromCharCode(92)) ||
+                        filePath.split('/').some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git') ||
+                        !/^[A-Za-z0-9_.@+-]+(?:\/[A-Za-z0-9_.@+-]+)*$/.test(filePath)) {
+                      await fail('invalid additional file path or non-text content: ' + filePath);
+                      return;
+                    }
+                    if ([...files.keys()].some(existingPath => existingPath.toLowerCase() === filePath.toLowerCase())) {
+                      await fail('duplicate or case-conflicting file path: ' + filePath);
+                      return;
+                    }
+                    files.set(filePath, content);
+                  }
+                }
+                const totalBytes = [...files.values()].reduce((sum, value) => sum + Buffer.byteLength(value, 'utf8'), 0);
+                if (files.size > 30 || totalBytes > 45000) {
+                  await fail('JSON submissions are limited to 30 files and 45 KB of UTF-8 text. Use ZIP for larger directory structures.');
+                  return;
+                }
               }
-            }
 
-            const totalBytes = [...files.values()].reduce((sum, value) => sum + Buffer.byteLength(value, 'utf8'), 0);
-            if (files.size > 30 || totalBytes > 45000) {
-              await fail('this Issue supports at most 30 files and 45 KB of text. For larger Skills, use a source repository and the external Skill submission form.');
-              return;
-            }
+              if (!files.has('SKILL.md') || !files.get('SKILL.md').trim()) {
+                await fail('the submitted Skill must contain a non-empty SKILL.md at its root.');
+                return;
+              }
 
-            const branch = 'add-local-skill/issue-' + issue.number;
-            const { data: existing } = await github.rest.pulls.list({
-              ...context.repo, state: 'all', head: context.repo.owner + ':' + branch
-            });
-            if (existing.length) {
-              await github.rest.issues.createComment({
-                ...context.repo, issue_number: issue.number,
-                body: 'A pull request already exists for this submission: ' + existing[0].html_url
+              const seenPaths = new Set();
+              for (const [filePath, content] of files) {
+                if (typeof content !== 'string' || !filePath ||
+                    filePath.startsWith('/') || filePath.includes(String.fromCharCode(92)) ||
+                    filePath.split('/').some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git') ||
+                    !/^[A-Za-z0-9_.@+-]+(?:\/[A-Za-z0-9_.@+-]+)*$/.test(filePath)) {
+                  await fail('invalid file path or content: ' + filePath);
+                  return;
+                }
+                const folded = filePath.toLowerCase();
+                if (seenPaths.has(folded)) {
+                  await fail('duplicate or case-conflicting file path: ' + filePath);
+                  return;
+                }
+                seenPaths.add(folded);
+              }
+
+              const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+              if (!slug) {
+                await fail('the Skill name must contain at least one English letter or number to form a directory name.');
+                return;
+              }
+
+              const directory = 'skills/' + category + '/' + slug;
+              const branchName = 'add-local-skill/issue-' + issue.number;
+              const { data: existingPrs } = await github.rest.pulls.list({
+                ...context.repo,
+                state: 'all',
+                head: context.repo.owner + ':' + branchName
               });
-              return;
+              if (existingPrs.length) {
+                await github.rest.issues.createComment({
+                  ...context.repo,
+                  issue_number: issue.number,
+                  body: 'A pull request already exists for this submission: ' + existingPrs[0].html_url
+                });
+                return;
+              }
+
+              const { data: repoData } = await github.rest.repos.get({ ...context.repo });
+              const base = repoData.default_branch;
+              const { data: baseRef } = await github.rest.git.getRef({
+                ...context.repo,
+                ref: 'heads/' + base
+              });
+
+              const { data: existingPath } = await github.rest.repos.getContent({
+                ...context.repo,
+                path: directory,
+                ref: base
+              }).catch(error => {
+                if (error.status === 404) return { data: null };
+                throw error;
+              });
+              if (existingPath) {
+                await fail('a Skill directory already exists at ' + directory + '. Choose another name or update the existing Skill manually.');
+                return;
+              }
+
+              const treeEntries = [...files.entries()].map(([filePath, content]) => ({
+                path: directory + '/' + filePath,
+                mode: '100644',
+                type: 'blob',
+                content
+              }));
+              const { data: tree } = await github.rest.git.createTree({
+                ...context.repo,
+                base_tree: baseRef.object.sha,
+                tree: treeEntries
+              });
+              const { data: commit } = await github.rest.git.createCommit({
+                ...context.repo,
+                message: 'skills: add ' + name,
+                tree: tree.sha,
+                parents: [baseRef.object.sha]
+              });
+              await github.rest.git.createRef({
+                ...context.repo,
+                ref: 'refs/heads/' + branchName,
+                sha: commit.sha
+              });
+
+              const filePaths = [...files.keys()].sort();
+              const fileTree = filePaths.map(filePath => '- <code>' + filePath + '</code>').join('\n');
+              const readmeLink = files.has('README.md')
+                ? '[Preview README.md](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/' + branchName + '/' + directory + '/README.md)'
+                : 'README.md not supplied';
+              const skillLink = '[View SKILL.md](https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/blob/' + branchName + '/' + directory + '/SKILL.md)';
+
+              const { data: pr } = await github.rest.pulls.create({
+                ...context.repo,
+                title: 'skills: add ' + name,
+                head: branchName,
+                base,
+                body: [
+                  '## Skill submission',
+                  '- **Name:** ' + name,
+                  '- **Category:** ' + category,
+                  '- **Submission mode:** ' + submissionMode,
+                  '- **Files:** ' + files.size,
+                  '- **UTF-8 text size:** ' + [...files.values()].reduce((sum, value) => sum + Buffer.byteLength(value, 'utf8'), 0) + ' bytes',
+                  '',
+                  '## Review entry points',
+                  '- ' + readmeLink,
+                  '- ' + skillLink,
+                  '- Review every file in the **Files changed** tab before merging.',
+                  '',
+                  '## Submitted file tree',
+                  fileTree,
+                  '',
+                  '## Validation',
+                  '- ZIP path traversal, symlink, special-file, duplicate-path, file-count and size checks are applied to ZIP uploads.',
+                  '- Only UTF-8 text files are accepted; uploaded scripts are stored as files and are never executed by this workflow.',
+                  '- This pull request is intentionally not auto-merged. Maintainer review and merge are required.',
+                  '',
+                  'Closes #' + issue.number
+                ].join('\n')
+              });
+
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Validation passed and a review pull request was created: ' + pr.html_url + '\n\nThe Skill will appear on the portal only after a maintainer reviews and merges the PR.'
+              });
+            } catch (error) {
+              const message = String(error.message || error).slice(0, 500);
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issue.number,
+                body: 'Local Skill automation failed unexpectedly. No PR was created. Please retry later or contact the repository maintainer.\n\nDiagnostic: ' + message
+              });
+              core.setFailed(message);
             }
-
-            const { data: repoData } = await github.rest.repos.get({ ...context.repo });
-            const base = repoData.default_branch;
-            const { data: refData } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/' + base });
-            const { data: commitData } = await github.rest.git.getCommit({
-              ...context.repo, commit_sha: refData.object.sha
-            });
-            const { data: existingPath } = await github.rest.repos.getContent({
-              ...context.repo, path: directory, ref: base
-            }).catch(error => {
-              if (error.status === 404) return { data: null };
-              throw error;
-            });
-            if (existingPath) {
-              await fail('a Skill directory already exists at ' + directory + '. Choose a different Skill name or update the existing Skill manually.');
-              return;
-            }
-
-            const entries = [...files.entries()].map(([path, content]) => ({
-              path: directory + '/' + path,
-              mode: '100644',
-              type: 'blob',
-              content
-            }));
-            const { data: tree } = await github.rest.git.createTree({
-              ...context.repo,
-              base_tree: commitData.tree.sha,
-              tree: entries
-            });
-            const { data: commit } = await github.rest.git.createCommit({
-              ...context.repo,
-              message: 'skills: add ' + name,
-              tree: tree.sha,
-              parents: [refData.object.sha]
-            });
-            await github.rest.git.createRef({
-              ...context.repo,
-              ref: 'refs/heads/' + branch,
-              sha: commit.sha
-            });
-
-            const { data: pr } = await github.rest.pulls.create({
-              ...context.repo,
-              title: 'skills: add ' + name,
-              head: branch,
-              base,
-              body: [
-                '## Summary',
-                '- Add local Skill **' + name + '**.',
-                '- Directory: `' + directory + '`',
-                '- Category: ' + category,
-                '- Files: ' + [...files.keys()].map(path => '`' + path + '`').join(', '),
-                '',
-                'The Pages build discovers the new Skill automatically and generates its preview and ZIP download.',
-                '',
-                'Closes #' + issue.number
-              ].join('\\n')
-            });
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number: issue.number,
-              body: 'Created pull request: ' + pr.html_url
-            });
