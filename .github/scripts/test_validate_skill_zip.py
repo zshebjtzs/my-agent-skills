@@ -83,7 +83,7 @@ class ValidateSkillZipTests(unittest.TestCase):
     def test_rejects_binary_content(self):
         archive = self.make_zip([
             ("SKILL.md", "# Example skill"),
-            ("image.bin", b"\\x00\\x01"),
+            ("image.bin", b"\x00\x01"),
         ])
         with self.assertRaises(validator.ValidationError):
             validator.read_zip(archive)
@@ -91,7 +91,7 @@ class ValidateSkillZipTests(unittest.TestCase):
     def test_rejects_invalid_utf8(self):
         archive = self.make_zip([
             ("SKILL.md", "# Example skill"),
-            ("notes.txt", b"\\xff\\xfe"),
+            ("notes.txt", b"\xff\xfe"),
         ])
         with self.assertRaises(validator.ValidationError):
             validator.read_zip(archive)
