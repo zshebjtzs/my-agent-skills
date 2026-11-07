@@ -5,6 +5,7 @@ export default defineConfig({
   description: 'A curated, searchable and downloadable library of agent skills.',
   base: '/my-agent-skills/',
   cleanUrls: false,
+  markdown: { html: false },
   lastUpdated: true,
   themeConfig: {
     siteTitle: 'MY AGENT SKILLS',

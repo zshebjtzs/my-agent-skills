@@ -1,10 +1,11 @@
 import { execFileSync } from 'node:child_process';
-import { readdir, readFile, rm, mkdir, writeFile, stat } from 'node:fs/promises';
+import { readdir, readFile, rm, mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep, posix } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
-import { strToU8, zipSync } from 'fflate';
+import { zipSync } from 'fflate';
 
-const ROOT = resolve(dirname(new URL(import.meta.url).pathname), '..');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SITE = join(ROOT, 'site');
 const DOWNLOADS = join(SITE, 'public', 'downloads');
 const CATEGORIES = ['personal', 'community', 'shared'];
@@ -57,7 +58,7 @@ async function readSkillDocument(skillRoot, skillFile) {
   const raw = await readFile(documentPath, 'utf8');
   const parsed = matter(raw);
   const skillMeta = matter(await readFile(skillFile, 'utf8')).data;
-  const metadata = { ...skillMeta, ...parsed.data };
+  const metadata = { ...parsed.data, ...skillMeta };
   const folderName = skillRoot.split(sep).at(-1);
   const name = metadata.name || folderName;
   const description = metadata.description || parsed.content.split(/\n\s*\n/).find(line => line.trim() && !line.trim().startsWith('#'))?.replace(/[*_`]/g, '').trim().slice(0, 220) || 'No description provided.';
@@ -100,12 +101,11 @@ description: ${JSON.stringify(item.description)}
 aside: false
 ---
 
-<div class="skill-toolbar">
-  <a class="skill-download" href="../../downloads/${item.id}.zip" download>Download Skill (.zip)</a>
-  <a class="skill-source" href="${sourceLink}" target="_blank" rel="noreferrer">View source repository ↗</a>
-</div>
+[**Download entire Skill (.zip)**](../../downloads/${item.id}.zip) · [View source repository ↗](${sourceLink})
 
-<div class="skill-meta"><span>${item.category}</span>${item.tags.length ? `<span>${item.tags.join(' · ')}</span>` : ''}</div>
+_Category: ${item.category}_
+
+---
 
 ${markdown || '_No README or SKILL.md content was found._'}
 `;
@@ -124,6 +124,20 @@ async function fetchJson(url) {
     }
   }
   throw lastError;
+}
+
+async function mapLimit(items, limit, mapper) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const index = nextIndex++;
+      if (index >= items.length) return;
+      results[index] = await mapper(items[index], index);
+    }
+  });
+  await Promise.all(workers);
+  return results;
 }
 
 async function fetchBytes(url) {
@@ -159,12 +173,12 @@ async function buildExternalSkill(entry) {
 
   const entries = {};
   let totalBytes = 0;
-  const contents = await Promise.all(files.map(async file => {
+  const contents = await mapLimit(files, 8, async file => {
     const bytes = await fetchBytes(`https://raw.githubusercontent.com/${repository}/${commitSha}/${file.path.split('/').map(encodeURIComponent).join('/')}`);
     totalBytes += bytes.byteLength;
     if (totalBytes > 25 * 1024 * 1024) throw new Error(`Skill exceeds 25 MB: ${entry.id}`);
     return { file, bytes };
-  }));
+  });
   for (const { file, bytes } of contents) {
     const innerPath = file.path.slice(prefix.length);
     entries[`${skillPath.split('/').at(-1)}/${innerPath}`] = bytes;
@@ -238,43 +252,49 @@ for (const category of CATEGORIES) {
   }
 }
 
-const categoryCards = CATEGORIES.map(category => {
+const features = CATEGORIES.map(category => {
   const count = items.filter(item => item.category === category).length;
   const label = category[0].toUpperCase() + category.slice(1);
-  return `<a class="category-card" href="/my-agent-skills/skills/${category}/"><span class="category-count">${String(count).padStart(2, '0')} SKILLS</span><strong>${label}</strong><span>Browse the ${label.toLowerCase()} collection →</span></a>`;
-}).join('\n');
+  return {
+    title: label,
+    details: `${count} Skill${count === 1 ? '' : 's'} in this collection.`,
+    link: `/skills/${category}/`,
+    linkText: `Browse ${label}`
+  };
+});
 
 const latest = items.slice(0, 8).map(item =>
-  `- [**${item.name}**](/skills/${item.category}/${item.id}) <span class="inline-category">${item.category}</span> — ${item.description.replace(/\s+/g, ' ').slice(0, 150)}`
-).join('\n') || '_No Skills discovered yet._';
+  `- [**${item.name}**](/skills/${item.category}/${item.id}) — ${item.description.replace(/\\s+/g, ' ').slice(0, 150)}`
+).join('\\n') || '_No Skills discovered yet._';
 
 const homepage = `---
+layout: home
 title: My Agent Skills
+hero:
+  name: My Agent Skills
+  text: A curated library of agent skills.
+  tagline: ${items.length} Skills · Organized, searchable, readable, and downloadable.
+  actions:
+    - theme: brand
+      text: Explore Skills
+      link: /skills/personal/
+    - theme: alt
+      text: View GitHub
+      link: https://github.com/zshebjtzs/my-agent-skills
+features:
+${features.map(feature => `  - title: ${feature.title}
+    details: ${JSON.stringify(feature.details)}
+    link: ${feature.link}
+    linkText: ${JSON.stringify(feature.linkText)}`).join('\\n')}
 ---
 
-<div class="portal-hero">
-  <div class="portal-eyebrow">PERSONAL SKILL LIBRARY</div>
-  <h1>My Agent Skills<span>.</span></h1>
-  <p>A curated library of reusable agent skills — organized, searchable, readable, and downloadable.</p>
-  <div class="portal-actions"><a href="/my-agent-skills/skills/personal/">Explore Skills</a><a class="secondary" href="https://github.com/zshebjtzs/my-agent-skills">View GitHub ↗</a></div>
-  <div class="portal-total"><strong>${items.length}</strong><span>SKILLS IN CATALOG</span></div>
-</div>
-
-## Browse by category
-
-<div class="category-grid">
-${categoryCards}
-</div>
-
-## Skill catalog
+## Recently added
 
 ${latest}
 
-<div class="submission-note">
-  <strong>Contribute a Skill</strong>
-  <span>Have a useful external Skill? Submit it through GitHub Issues. A pull request will be generated for review.</span>
-  <a href="https://github.com/zshebjtzs/my-agent-skills/issues/new?template=add-skill.yml">Submit a Skill ↗</a>
-</div>
+---
+
+**Contribute a Skill:** [Submit an external Skill through GitHub Issues](https://github.com/zshebjtzs/my-agent-skills/issues/new?template=add-skill.yml).
 `;
 await writeFile(join(SITE, 'index.md'), homepage);
 console.log(`Generated the Skill portal with ${items.length} Skills.`);

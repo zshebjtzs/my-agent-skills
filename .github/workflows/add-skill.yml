@@ -2,7 +2,7 @@ name: Add external Skill
 
 on:
   issues:
-    types: [opened, labeled]
+    types: [opened]
 
 permissions:
   contents: write
@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   create-skill-pr:
-    if: contains(github.event.issue.labels.*.name, 'skill-submission')
+    if: startsWith(github.event.issue.title, '[Skill]')
     runs-on: ubuntu-latest
     steps:
       - name: Create a catalog pull request
@@ -21,18 +21,10 @@ jobs:
             const issue = context.payload.issue;
             const body = issue.body || '';
             const field = (label) => {
-              const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-              const match = body.match(new RegExp('### ' + escaped + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)', 'i'));
+              const match = body.match(new RegExp('### ' + label + '\\s*\\n+([\\s\\S]*?)(?=\\n### |$)', 'i'));
               const value = match?.[1]?.trim();
               return value && value !== '_No response_' ? value : '';
             };
-
-            const name = field('Skill name');
-            const category = field('Category').toLowerCase();
-            const repositoryUrl = field('GitHub repository').replace(/\\/$/, '');
-            const skillPath = field('Skill directory path').replace(/^\\/+|\\/+$/g, '');
-            const requestedRef = field('Branch, tag, or commit');
-            const match = repositoryUrl.match(/^https:\\/\\/github\\.com\\/([A-Za-z0-9_.-]+)\\/([A-Za-z0-9_.-]+)$/);
 
             const fail = async (message) => {
               await github.rest.issues.createComment({
@@ -42,19 +34,49 @@ jobs:
               });
             };
 
-            if (!name || !['personal', 'community', 'shared'].includes(category) || !match || !skillPath ||
-                skillPath.split('/').some(part => part === '.' || part === '..') ||
-                !/^[A-Za-z0-9_./-]+$/.test(skillPath)) {
+            const name = field('Skill name');
+            const category = field('Category').toLowerCase();
+            const repositoryUrl = field('GitHub repository').trim();
+            const rawPath = field('Skill directory path').trim();
+            const requestedRef = field('Branch, tag, or commit').trim();
+            let parsedUrl;
+            try { parsedUrl = new URL(repositoryUrl); } catch { parsedUrl = null; }
+            const repoParts = parsedUrl?.pathname.split('/').filter(Boolean) || [];
+            const validRepoUrl = parsedUrl?.protocol === 'https:' && parsedUrl?.hostname === 'github.com' && repoParts.length === 2;
+            const owner = validRepoUrl ? repoParts[0] : '';
+            const sourceRepoName = validRepoUrl ? repoParts[1].replace(/\\.git$/i, '') : '';
+            const skillPath = rawPath.split('/').filter(Boolean).join('/');
+            const validPath = rawPath.length > 0 && !rawPath.startsWith('/') &&
+              !rawPath.split('/').some(part => part === '.' || part === '..') &&
+              new RegExp('^[A-Za-z0-9_./-]+$').test(rawPath);
+
+            if (!name || !['personal', 'community', 'shared'].includes(category) ||
+                !validRepoUrl || !sourceRepoName || !validPath) {
               await fail('please check the Skill name, category, public GitHub repository URL, and repository-relative Skill directory path.');
               return;
             }
 
-            const repository = match[1] + '/' + match[2].replace(/\\.git$/i, '');
+            const repository = owner + '/' + sourceRepoName;
             const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+            if (!slug) {
+              await fail('the Skill name must contain at least one English letter or number so it can form a catalog ID.');
+              return;
+            }
             const id = category + '-' + slug;
             const branch = 'add-skill/issue-' + issue.number;
 
-            const { data: repoData } = await github.rest.repos.get({ owner: context.repo.owner, repo: context.repo.repo });
+            const { data: existing } = await github.rest.pulls.list({
+              ...context.repo, state: 'all', head: context.repo.owner + ':' + branch
+            });
+            if (existing.length) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: issue.number,
+                body: 'A pull request already exists for this submission: ' + existing[0].html_url
+              });
+              return;
+            }
+
+            const { data: repoData } = await github.rest.repos.get({ ...context.repo });
             const base = repoData.default_branch;
             const { data: refData } = await github.rest.git.getRef({ ...context.repo, ref: 'heads/' + base });
             const { data: catalogFile } = await github.rest.repos.getContent({
@@ -67,8 +89,8 @@ jobs:
               return;
             }
 
-            const { data: sourceRepo } = await github.rest.repos.get({ owner: match[1], repo: match[2].replace(/\\.git$/i, '') });
-            if (sourceRepo.private || sourceRepo.archived) {
+            const { data: sourceRepoData } = await github.rest.repos.get({ owner, repo: sourceRepoName });
+            if (sourceRepoData.private || sourceRepoData.archived) {
               await fail('the source repository must be public and not archived.');
               return;
             }
@@ -81,7 +103,7 @@ jobs:
               source: {
                 type: 'external',
                 repository,
-                ref: requestedRef || sourceRepo.default_branch,
+                ref: requestedRef || sourceRepoData.default_branch,
                 path: skillPath
               }
             };
