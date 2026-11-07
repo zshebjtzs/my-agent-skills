@@ -324,6 +324,7 @@ for (const category of CATEGORIES) {
   for (const item of categoryItems) {
     const englishDetail = detailPage(item)
       .replace('Download entire Skill (.zip)', 'Download Skill ZIP')
+      .replace('../../downloads/', '../../../downloads/')
       .replace('_Category: ', '_Category: ');
     await writeFile(join(categoryDir, `${item.id}.md`), englishDetail);
   }
