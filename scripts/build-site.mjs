@@ -264,8 +264,8 @@ const features = CATEGORIES.map(category => {
 });
 
 const latest = items.slice(0, 8).map(item =>
-  `- [**${item.name}**](/skills/${item.category}/${item.id}) — ${item.description.replace(/\\s+/g, ' ').slice(0, 150)}`
-).join('\\n') || '_No Skills discovered yet._';
+  `- [**${item.name}**](/skills/${item.category}/${item.id}) — ${item.description.replace(/\s+/g, ' ').slice(0, 150)}`
+).join('\n') || '_No Skills discovered yet._';
 
 const homepage = `---
 layout: home
@@ -285,7 +285,7 @@ features:
 ${features.map(feature => `  - title: ${feature.title}
     details: ${JSON.stringify(feature.details)}
     link: ${feature.link}
-    linkText: ${JSON.stringify(feature.linkText)}`).join('\\n')}
+    linkText: ${JSON.stringify(feature.linkText)}`).join('\n')}
 ---
 
 ## Recently added

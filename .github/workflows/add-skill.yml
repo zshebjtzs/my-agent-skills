@@ -44,7 +44,7 @@ jobs:
             const repoParts = parsedUrl?.pathname.split('/').filter(Boolean) || [];
             const validRepoUrl = parsedUrl?.protocol === 'https:' && parsedUrl?.hostname === 'github.com' && repoParts.length === 2;
             const owner = validRepoUrl ? repoParts[0] : '';
-            const sourceRepoName = validRepoUrl ? repoParts[1].replace(/\\.git$/i, '') : '';
+            const sourceRepoName = validRepoUrl ? repoParts[1].replace(/\.git$/i, '') : '';
             const skillPath = rawPath.split('/').filter(Boolean).join('/');
             const validPath = rawPath.length > 0 && !rawPath.startsWith('/') &&
               !rawPath.split('/').some(part => part === '.' || part === '..') &&
@@ -115,7 +115,7 @@ jobs:
             });
 
             catalog.push(newEntry);
-            const content = Buffer.from(JSON.stringify(catalog, null, 2) + '\\n').toString('base64');
+            const content = Buffer.from(JSON.stringify(catalog, null, 2) + '\n').toString('base64');
             await github.rest.repos.createOrUpdateFileContents({
               ...context.repo,
               path: 'catalog/external-skills.json',
@@ -139,7 +139,7 @@ jobs:
                 'The Pages build validates the source directory and generates its preview and ZIP download.',
                 '',
                 'Closes #' + issue.number
-              ].join('\\n')
+              ].join('\n')
             });
 
             await github.rest.issues.createComment({
