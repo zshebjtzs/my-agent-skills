@@ -315,6 +315,17 @@ jobs:
                 }
                 seenPaths.add(folded);
               }
+              const submittedPaths = new Set(files.keys());
+              for (const filePath of submittedPaths) {
+                const segments = filePath.split('/');
+                for (let index = 1; index < segments.length; index++) {
+                  const parentPath = segments.slice(0, index).join('/');
+                  if (submittedPaths.has(parentPath)) {
+                    await fail('a submitted file is also used as a parent directory: ' + parentPath);
+                    return;
+                  }
+                }
+              }
 
               const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
               if (!slug) {
