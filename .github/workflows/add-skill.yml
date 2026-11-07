@@ -164,8 +164,8 @@ jobs:
               return value && value !== '_No response_' ? value : '';
             };
             const marked = (name) => {
-              const start = '<!-- BEGIN ' + name + ' -->';
-              const end = '<!-- END ' + name + ' -->';
+              const start = '[[BEGIN ' + name + ']]';
+              const end = '[[END ' + name + ']]';
               const startAt = body.indexOf(start);
               if (startAt < 0) return '';
               const contentStart = startAt + start.length;
