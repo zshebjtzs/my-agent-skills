@@ -1,4 +1,4 @@
-#  My Agent Skills
+# My Agent Skills
 
 > 个人 Agent Skill 集合 —— 涵盖通用工具、个人定制与社区精选
 
@@ -26,15 +26,18 @@ my-agent-skills/
 
 ## 🚀 添加 Skill
 
-### 添加本地 Skill
+### 添加本地 Skill（自动化）
 
-将完整 Skill 目录放入以下任一分类：
+在仓库的 **Issues → New issue → Add a local Skill** 提交：
 
-- `skills/personal/`
-- `skills/community/`
-- `skills/shared/`
+- Skill 名称与分类。
+- 完整的 `SKILL.md` 内容（必填）。
+- 可选的 `README.md`。
+- 可选的附加文本文件（以 JSON 对象提交相对路径和文件内容）。
 
-目录中提供 `SKILL.md`，可选提供 `README.md` 作为在线介绍页。构建时会自动发现 Skill；优先展示 `README.md`，否则展示 `SKILL.md`。无需手动维护索引。
+GitHub Actions 会自动生成 `skills/{category}/{slug}/` 目录和文件，并创建 PR。审核、合并后网站自动更新。无需手动编辑仓库或 commit。
+
+> Issue 表单适合文本型 Skill。附件总计限制为 30 个文件、45 KB 文本；更大的 Skill（例如包含二进制资源或大量脚本）请使用外部仓库引用流程。
 
 ### 引用外部 Skill
 
