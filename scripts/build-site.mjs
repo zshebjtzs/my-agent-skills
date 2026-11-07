@@ -297,4 +297,79 @@ ${latest}
 **Contribute a Skill:** [Submit an external Skill through GitHub Issues](https://github.com/zshebjtzs/my-agent-skills/issues/new?template=add-skill.yml).
 `;
 await writeFile(join(SITE, 'index.md'), homepage);
+
+const englishCategoryNames = {
+  personal: 'Personal',
+  community: 'Community',
+  shared: 'Shared'
+};
+const englishCategoryDescriptions = {
+  personal: 'Skills tailored to individual workflows and preferences.',
+  community: 'Skills contributed by the open-source community.',
+  shared: 'Reusable Skills shared across projects and agents.'
+};
+const englishLatest = items.slice(0, 8).map(item =>
+  `- [**${item.name}**](/en/skills/${item.category}/${item.id}) — ${item.description.replace(/\s+/g, ' ').slice(0, 150)}`
+).join('\n') || '_No Skills discovered yet._';
+
+for (const category of CATEGORIES) {
+  const categoryItems = items.filter(item => item.category === category);
+  const categoryDir = join(SITE, 'en', 'skills', category);
+  await mkdir(categoryDir, { recursive: true });
+  const links = categoryItems.length
+    ? categoryItems.map(item => `- [**${item.name}**](./${item.id}) — ${item.description.replace(/\s+/g, ' ').slice(0, 180)}`).join('\n')
+    : '_No Skills in this category yet._';
+  await writeFile(join(categoryDir, 'index.md'),
+    `# ${englishCategoryNames[category]} Skills\n\n${englishCategoryDescriptions[category]}\n\n${links}\n`);
+  for (const item of categoryItems) {
+    const englishDetail = detailPage(item)
+      .replace('Download entire Skill (.zip)', 'Download Skill ZIP')
+      .replace('../../downloads/', '../../../downloads/')
+      .replace('_Category: ', '_Category: ');
+    await writeFile(join(categoryDir, `${item.id}.md`), englishDetail);
+  }
+}
+
+const englishFeatures = CATEGORIES.map(category => {
+  const count = items.filter(item => item.category === category).length;
+  const label = englishCategoryNames[category];
+  return {
+    title: label,
+    details: `${count} Skill${count === 1 ? '' : 's'} · ${englishCategoryDescriptions[category]}`,
+    link: `/en/skills/${category}/`,
+    linkText: `Browse ${label}`
+  };
+});
+const englishHomepage = `---
+layout: home
+title: My Agent Skills
+hero:
+  name: My Agent Skills
+  text: A curated library of agent skills.
+  tagline: ${items.length} Skills · Organized, searchable, readable, and downloadable.
+  actions:
+    - theme: brand
+      text: Explore Skills
+      link: /en/skills/personal/
+    - theme: alt
+      text: View GitHub
+      link: https://github.com/zshebjtzs/my-agent-skills
+features:
+${englishFeatures.map(feature => `  - title: ${feature.title}
+    details: ${JSON.stringify(feature.details)}
+    link: ${feature.link}
+    linkText: ${JSON.stringify(feature.linkText)}`).join('\n')}
+---
+
+## Recently added
+
+${englishLatest}
+
+---
+
+**Contribute a Skill:** [Submit an external Skill through GitHub Issues](https://github.com/zshebjtzs/my-agent-skills/issues/new?template=add-skill.yml).
+`;
+await mkdir(join(SITE, 'en'), { recursive: true });
+await writeFile(join(SITE, 'en', 'index.md'), englishHomepage);
+
 console.log(`Generated the Skill portal with ${items.length} Skills.`);
