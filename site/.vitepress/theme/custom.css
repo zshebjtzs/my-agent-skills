@@ -1,0 +1,36 @@
+:root {
+  --vp-c-brand-1: #8b7cff;
+  --vp-c-brand-2: #7565ed;
+  --vp-c-brand-3: #6252d8;
+  --vp-c-brand-soft: rgba(139, 124, 255, 0.14);
+}
+
+.VPHomeHero .name {
+  letter-spacing: -.055em;
+}
+
+.VPHomeHero .text {
+  max-width: 760px;
+  font-size: clamp(38px, 6vw, 68px);
+  line-height: 1.05;
+}
+
+.VPFeature {
+  border-radius: 14px;
+  transition: border-color .18s ease, transform .18s ease;
+}
+
+.VPFeature:hover {
+  border-color: var(--vp-c-brand-1);
+  transform: translateY(-2px);
+}
+
+.VPDoc .content a {
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 720px) {
+  .VPHomeHero .text {
+    font-size: 42px;
+  }
+}

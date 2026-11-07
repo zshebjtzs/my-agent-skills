@@ -10,71 +10,72 @@
 
 ```text
 my-agent-skills/
-├── README.md                  # 项目说明（你正在阅读的文件）
-├── skills/                    # 核心目录：存放所有技能
-│   ├── shared/                # 跨项目、跨团队通用的通用技能
-│   │   └── <skill-name>/      # 每个技能独立成目录
-│   │       ├── SKILL.md       # 技能定义文件（必需）
-│   │       ├── scripts/       # 辅助脚本（可选）
-│   │       ├── references/    # 参考文档（可选）
-│   │       └── assets/        # 静态资源，如图片（可选）
-│   ├── personal/              # 个人专属定制技能
-│   │   └── <skill-name>/
-│   │       └── SKILL.md       # （其余目录结构同 shared）
-│   └── community/             # 从开源社区收集的技能（保留原始许可）
-│       └── <skill-name>/
-│           └── SKILL.md
-└── templates/                 # 技能模板，方便快速创建新技能
-    └── <template-name>/
-        └── SKILL.md
+├── README.md
+├── skills/
+│   ├── shared/
+│   ├── personal/
+│   └── community/
+├── catalog/
+│   └── external-skills.json
+├── scripts/
+├── site/
+└── .github/
 ```
 
 ---
 
-## 🚀 如何添加一个新技能
+## 🚀 添加 Skill
 
-1. **选择分类**：根据技能用途或来源，放入 `skills/shared`、`skills/personal` 或 `skills/community`。
-2. **创建技能目录**：在该分类下新建一个以技能命名的文件夹（例如 `my-awesome-skill`）。
-3. **编写技能定义**：在目录中创建 `SKILL.md` 文件，至少包含如下元数据：
-   ```markdown
-   ---
-   name: my-awesome-skill
-   description: 描述这个技能做什么，适用于什么场景。
-   version: 1.0.0
-   author: your-github-username
-   source: self-authored | open-source (请注明出处)
-   ---
+### 添加本地 Skill
 
-   # 详细指令
-   在这里写下给 Agent 的具体执行步骤、提示词或逻辑。
-   ```
-4. **附加资源**（按需添加）：`scripts/`、`references/`、`assets/` 等子目录。
-5. **更新索引**（可选）：如果仓库根目录下有 `SKILLS.md`，记得在此添加对新技能的简要介绍。
+将完整 Skill 目录放入以下任一分类：
+
+- `skills/personal/`
+- `skills/community/`
+- `skills/shared/`
+
+目录中提供 `SKILL.md`，可选提供 `README.md` 作为在线介绍页。构建时会自动发现 Skill；优先展示 `README.md`，否则展示 `SKILL.md`。无需手动维护索引。
+
+### 引用外部 Skill
+
+在仓库的 **Issues → New issue → Add an external Skill** 提交来源仓库和 Skill 目录。GitHub Actions 会自动向 `catalog/external-skills.json` 添加条目并创建 PR；审核、合并后网站自动更新。
+
+---
+
+## 🌐 Skill Portal
+
+本仓库同时托管 VitePress 静态网站，部署在 GitHub Pages：
+
+- 按 Personal、Community、Shared 分类浏览。
+- 在线阅读 Skill 的 README / SKILL.md。
+- 搜索名称、简介和正文。
+- 下载单个 Skill 的完整目录 ZIP（不包含仓库其他目录或 Git 元数据）。
+- 外部 Skill 在构建时读取并缓存，页面访问不依赖实时跨域请求。
+
+### 本地开发
+
+需要 Node.js 22 或更高版本：
+
+```bash
+npm install
+npm run dev
+npm run build
+npm run preview
+```
+
+外部 Skill 定义位于 `catalog/external-skills.json`。每个外部条目指向一个公开 GitHub 仓库及仓库内的 Skill 目录。
 
 ---
 
 ## 🧩 技能使用
 
-每个技能都是自包含的，你可以直接将其复制到支持 Agent Skill 的客户端（如 Claude、AutoGPT 等）中加载。部分技能可能依赖外部脚本或环境变量，请参阅对应技能目录下的说明。
+每个技能都是自包含的，你可以直接将其复制到支持 Agent Skill 的客户端中加载。部分技能可能依赖外部脚本或环境变量，请参阅对应技能目录下的说明。
 
 ---
 
 ## 📄 许可证
 
 本仓库整体采用 [MIT License](LICENSE) 开源。但请注意：
+
 - `shared/` 和 `personal/` 下的自有技能默认遵循 MIT。
-- `community/` 下的技能**保留其原始许可证**，请在使用时遵守原作者的许可条款。
-
----
-
-## 🤝 贡献
-
-目前本仓库仅用于个人管理，暂不接受外部贡献。但欢迎通过 [Issues](https://github.com/zshebjtzs/my-agent-skills/issues) 提供建议或问题反馈。
-
----
-
-## 📌 后续计划
-
-随着技能增多，我会在此补充详细索引和使用示例，让每个技能更容易被理解和复用。
-
----
+- `community/` 下的技能保留其原始许可证，请遵守原作者的许可条款。

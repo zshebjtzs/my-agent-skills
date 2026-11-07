@@ -1,0 +1,51 @@
+name: Add an external Skill
+description: Suggest a Skill hosted in another public GitHub repository.
+title: "[Skill] "
+labels: ["skill-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Submit one Skill directory from a public GitHub repository. A pull request will be generated automatically for review.
+  - type: input
+    id: skill_name
+    attributes:
+      label: Skill name
+      description: A short display name.
+      placeholder: Example Skill
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Category
+      options:
+        - community
+        - shared
+        - personal
+    validations:
+      required: true
+  - type: input
+    id: repository_url
+    attributes:
+      label: GitHub repository
+      description: Repository URL, not a file or directory URL.
+      placeholder: https://github.com/owner/repository
+    validations:
+      required: true
+  - type: input
+    id: skill_path
+    attributes:
+      label: Skill directory path
+      description: Path from the repository root to the directory containing README.md or SKILL.md.
+      placeholder: skills/example
+    validations:
+      required: true
+  - type: input
+    id: ref
+    attributes:
+      label: Branch, tag, or commit
+      description: Leave blank to use the repository's default branch.
+      placeholder: main
+    validations:
+      required: false
