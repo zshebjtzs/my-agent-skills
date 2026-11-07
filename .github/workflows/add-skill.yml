@@ -213,7 +213,7 @@ jobs:
               }
               for (const [path, content] of Object.entries(extraFiles)) {
                 if (typeof content !== 'string' || !path || path.startsWith('/') ||
-                    path.includes('\\\\') || path.split('/').some(part => !part || part === '.' || part === '..' || part === '.git') ||
+                    path.includes(String.fromCharCode(92)) || path.split('/').some(part => !part || part === '.' || part === '..' || part === '.git') ||
                     !/^[A-Za-z0-9_.@+-]+(?:\\/[A-Za-z0-9_.@+-]+)*$/.test(path)) {
                   await fail('invalid additional file path or content: ' + path);
                   return;
